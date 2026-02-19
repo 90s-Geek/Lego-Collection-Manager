@@ -1,30 +1,26 @@
 @app.route('/api/search', methods=['POST'])
 def search_rebrickable():
-    data = request.get_json()
-    set_num = str(data.get('set_num', '')).strip() # Clean up whitespace
-    
-    if not set_num:
-        return jsonify({"error": "No set number provided"}), 400
+    # 1. Check if the key even exists in the environment
+    if not REBRICKABLE_KEY:
+        return jsonify({"error": "Server configuration error: Missing API Key"}), 500
 
-    # Ensure suffix is present (75192 becomes 75192-1)
-    # But don't double it if the user already typed 75192-1
-    if '-' not in set_num:
-        query_num = f"{set_num}-1"
-    else:
-        query_num = set_num
+    data = request.get_json()
+    set_num = str(data.get('set_num', '')).strip()
+    
+    # 2. Add the suffix if missing
+    query_num = f"{set_num}-1" if '-' not in set_num else set_num
 
     rb_url = f"https://rebrickable.com/api/v3/lego/sets/{query_num}/"
     headers = {'Authorization': f'key {REBRICKABLE_KEY}'}
     
-    print(f"Querying Rebrickable for: {query_num}") # Check your Vercel logs for this!
+    # This print will show up in the Vercel 'Logs' tab
+    print(f"DEBUG: Querying {rb_url} with key starting with {REBRICKABLE_KEY[:5]}...")
+
     response = requests.get(rb_url, headers=headers)
     
     if response.status_code == 200:
         return jsonify(response.json())
     else:
-        # Return more detail so you can debug
-        return jsonify({
-            "error": "Set not found", 
-            "queried_as": query_num,
-            "status_code": response.status_code
-        }), 404
+        # If it returns 401 here, your key is being passed but rejected
+        # If it returns 404, the suffixing logic is still likely the issue
+        return jsonify({"error": f"Rebrickable returned {response.status_code}"}), response.status_code
