@@ -1,24 +1,74 @@
-<h1>LEGO Collection Manager</h1>
-<form action="/search" method="post">
-    <input type="text" name="set_num" placeholder="Enter Set Number (e.g. 75192)" required>
-    <button type="submit">Search Rebrickable</button>
-</form>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>LEGO Manager - Search</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav>
+        <a href="index.html">Search</a>
+        <a href="collection.html">My Collection</a>
+    </nav>
 
-<hr>
+    <h1>Add to Collection</h1>
+    <div class="search-container">
+        <input type="text" id="set_num" placeholder="Enter Set # (e.g., 75192)">
+        <button onclick="searchSet()">Search</button>
+    </div>
 
-{% if set_data %}
-    <h2>Found: {{ set_data.name }}</h2>
-    <img src="{{ set_data.set_img_url }}" width="300">
-    <p>Year: {{ set_data.year }} | Parts: {{ set_data.num_parts }}</p>
-    
-    <form action="/add" method="post">
-        <input type="hidden" name="set_num" value="{{ set_data.set_num }}">
-        <input type="hidden" name="name" value="{{ set_data.name }}">
-        <input type="hidden" name="year" value="{{ set_data.year }}">
-        <input type="hidden" name="img_url" value="{{ set_data.set_img_url }}">
-        <button type="submit">Add to My Collection</button>
-    </form>
-{% endif %}
+    <div id="search-result" style="display: none;">
+        <img id="preview-img" src="" alt="Set Preview">
+        <h2 id="preview-name"></h2>
+        <p id="preview-info"></p>
+        <button id="add-btn" onclick="addToCollection()">Add to My Collection</button>
+    </div>
 
-<br>
-<a href="/collection">View My Collection</a>
+    <script>
+        let currentSet = null;
+
+        async function searchSet() {
+            const setNum = document.getElementById('set_num').value;
+            const resultDiv = document.getElementById('search-result');
+            
+            try {
+                const response = await fetch('/api/search', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ set_num: setNum })
+                });
+
+                if (!response.ok) throw new Error('Set not found');
+
+                currentSet = await response.json();
+                
+                // Update UI
+                document.getElementById('preview-img').src = currentSet.set_img_url;
+                document.getElementById('preview-name').innerText = currentSet.name;
+                document.getElementById('preview-info').innerText = `Year: ${currentSet.year}`;
+                resultDiv.style.display = 'block';
+            } catch (err) {
+                alert(err.message);
+                resultDiv.style.display = 'none';
+            }
+        }
+
+        async function addToCollection() {
+            if (!currentSet) return;
+
+            const response = await fetch('/api/add-set', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(currentSet)
+            });
+
+            if (response.ok) {
+                alert("Set added successfully!");
+                window.location.href = "collection.html";
+            } else {
+                alert("Error adding set. It might already be in your collection.");
+            }
+        }
+    </script>
+</body>
+</html>
