@@ -11,7 +11,7 @@ key = os.environ.get("SUPABASE_KEY")
 rebrickable_key = os.environ.get("REBRICKABLE_KEY")
 supabase = create_client(url, key)
 
-@app.route('/api/add-set', methods=['POST'])
+@app.route('/api/search', methods=['POST'])
 def add_set():
     data = request.json
     # Fetch data from Rebrickable first
