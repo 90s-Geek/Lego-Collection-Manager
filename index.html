@@ -7,7 +7,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <style>
-        /* 90s Geek Aesthetic */
         body {
             background-color: #1a1a1a;
             color: #00ff00;
@@ -48,21 +47,33 @@
             font-weight: bold;
             font-family: inherit;
             text-transform: uppercase;
+            transition: 0.2s;
         }
 
         button:hover {
-            background: #00cc00;
+            background: #fff;
+            color: #000;
         }
 
+        /* Styling for the search result area */
         #result-container {
             display: none;
-            background: #333;
+            background: #222;
             border: 2px solid #fff;
             padding: 20px;
-            margin-top: 20px;
+            margin: 20px 0;
             text-align: center;
         }
 
+        .save-btn {
+            background: #ff00ff; /* Neon pink to stand out */
+            color: #fff;
+            margin-top: 15px;
+            display: block;
+            width: 100%;
+        }
+
+        /* Styling for the collection list */
         #collection-list {
             list-style: none;
             padding: 0;
@@ -88,26 +99,21 @@
 </head>
 <body>
 
-    <h1>LEGO Set Database</h1>
+    <h1>LEGO Collection System v1.0</h1>
 
     <div class="search-box">
-        <p>> Enter Set Number (e.g., 6080 or 75192):</p>
-        <input type="text" id="set-input" placeholder="Set #">
-        <button onclick="searchLego()">Search</button>
+        <p>> INPUT SET ID:</p>
+        <input type="text" id="set-input" placeholder="e.g. 6080">
+        <button onclick="searchLego()">SEARCH</button>
     </div>
 
     <div id="result-container">
-        <h2 id="set-title"></h2>
-        <div id="set-image"></div>
-        <p id="set-meta"></p>
-        <button onclick="saveCurrentSet()" style="margin-top: 10px;">+ Add to Collection</button>
-    </div>
+        </div>
 
-    <h2>Saved Collection</h2>
+    <h2>Saved to Supabase</h2>
     <ul id="collection-list">
         </ul>
 
     <script src="script.js"></script>
-
 </body>
 </html>
