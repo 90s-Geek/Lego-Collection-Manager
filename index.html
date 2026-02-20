@@ -1,74 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>LEGO Manager - Search</title>
-    <link rel="stylesheet" href="style.css">
+    <title>90s Geek LEGO Search</title>
+    <style>
+        body { font-family: 'Courier New', Courier, monospace; background: #222; color: #0f0; padding: 20px; }
+        #result-container { margin-top: 20px; border: 1px solid #0f0; padding: 15px; display: none; }
+        img { max-width: 300px; border: 2px solid #fff; }
+        input, button { padding: 10px; font-size: 1rem; }
+    </style>
 </head>
 <body>
-    <nav>
-        <a href="index.html">Search</a>
-        <a href="collection.html">My Collection</a>
-    </nav>
+    <h1>Lego Set Database Search</h1>
+    <input type="text" id="set-input" placeholder="e.g. 6080 or 75192">
+    <button onclick="searchLego()">SEARCH</button>
 
-    <h1>Add to Collection</h1>
-    <div class="search-container">
-        <input type="text" id="set_num" placeholder="Enter Set # (e.g., 75192)">
-        <button onclick="searchSet()">Search</button>
+    <div id="result-container">
+        <h2 id="set-title"></h2>
+        <p id="set-meta"></p>
+        <div id="set-image"></div>
     </div>
 
-    <div id="search-result" style="display: none;">
-        <img id="preview-img" src="" alt="Set Preview">
-        <h2 id="preview-name"></h2>
-        <p id="preview-info"></p>
-        <button id="add-btn" onclick="addToCollection()">Add to My Collection</button>
-    </div>
-
-    <script>
-        let currentSet = null;
-
-        async function searchSet() {
-            const setNum = document.getElementById('set_num').value;
-            const resultDiv = document.getElementById('search-result');
-            
-            try {
-                const response = await fetch('/api/search', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ set_num: setNum })
-                });
-
-                if (!response.ok) throw new Error('Set not found');
-
-                currentSet = await response.json();
-                
-                // Update UI
-                document.getElementById('preview-img').src = currentSet.set_img_url;
-                document.getElementById('preview-name').innerText = currentSet.name;
-                document.getElementById('preview-info').innerText = `Year: ${currentSet.year}`;
-                resultDiv.style.display = 'block';
-            } catch (err) {
-                alert(err.message);
-                resultDiv.style.display = 'none';
-            }
-        }
-
-        async function addToCollection() {
-            if (!currentSet) return;
-
-            const response = await fetch('/api/add-set', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(currentSet)
-            });
-
-            if (response.ok) {
-                alert("Set added successfully!");
-                window.location.href = "collection.html";
-            } else {
-                alert("Error adding set. It might already be in your collection.");
-            }
-        }
-    </script>
+    <script src="script.js"></script>
 </body>
 </html>
