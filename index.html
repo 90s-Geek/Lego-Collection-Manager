@@ -46,7 +46,27 @@
         }
         button:hover { background: #00cc00; }
 
-        /* Styles for the Search Result Display */
+        /* Last Added Section Styles */
+        #last-added-section {
+            margin-top: 10px;
+            margin-bottom: 20px;
+            border: 1px dashed #00ff00;
+            padding: 15px;
+            background: #000;
+        }
+        #last-added-section h3 {
+            margin: 0 0 10px 0;
+            font-size: 0.8em;
+            color: #ff00ff;
+            text-transform: uppercase;
+        }
+        .last-added-card {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        /* Search Result Styles */
         #result-container { 
             display: none; 
             background: #222; 
@@ -54,13 +74,8 @@
             padding: 20px; 
             text-align: center; 
         }
-        #result-container h2 { 
-            color: #00ffff; 
-            margin-top: 0; 
-            text-transform: uppercase;
-        }
-
-        /* NEW: Styles for Year and Theme labels */
+        #result-container h2 { color: #00ffff; margin-top: 0; text-transform: uppercase; }
+        
         .set-meta { 
             color: #fff; 
             margin-bottom: 15px; 
@@ -68,7 +83,7 @@
             border-bottom: 1px solid #444;
             padding-bottom: 10px;
         }
-        .set-meta strong { color: #00ffff; } /* Cyan accent for 90s look */
+        .set-meta strong { color: #00ffff; }
 
         .save-btn { 
             background: #ff00ff; 
@@ -93,6 +108,11 @@
             <input type="text" id="set-input" placeholder="Set # (e.g. 6080)">
             <button type="submit">SEARCH</button>
         </form>
+    </div>
+
+    <div id="last-added-section">
+        <h3>> SYSTEM STATUS: LAST SET ADDED</h3>
+        <div id="last-added-container">Initializing...</div>
     </div>
 
     <div id="result-container"></div>
