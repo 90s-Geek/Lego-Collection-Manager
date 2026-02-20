@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My LEGO Collection</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        .logo { 
+            position: absolute;
+            top: 50px; 
+            left: 50px; 
+            max-width: 150px; 
+            max-height: 150px; 
+            display: block;
+            cursor: pointer;
+        }
+
+        body { 
+            background: #1a1a1a; 
+            color: #00ff00; 
+            font-family: 'Courier New', monospace; 
+            padding: 20px; 
+            max-width: 800px; 
+            margin: 120px auto 0 auto;
+            box-sizing: border-box;
+        }
+
+        .nav { margin-bottom: 20px; }
+        .nav a { color: #fff; text-decoration: none; border: 1px solid #00ff00; padding: 5px 10px; }
+        
+        .export-btn { 
+            background: #00ffff; 
+            color: #000; 
+            margin-bottom: 20px; 
+            padding: 10px; 
+            border: none; 
+            cursor: pointer; 
+            font-weight: bold;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        /* Controls Panel (Sort + Filter) */
+        .controls-panel {
+            border: 1px dashed #333;
+            padding: 15px;
+            margin-bottom: 15px;
+            background: #0a0a0a;
+        }
+        .controls-panel-title {
+            font-size: 0.7em;
+            color: #555;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+            letter-spacing: 2px;
+        }
+        .control-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        .control-row:last-child {
+            margin-bottom: 0;
+        }
+        .control-row label {
+            color: #ff00ff;
+            font-size: 0.8em;
+            text-transform: uppercase;
+            white-space: nowrap;
+            min-width: 80px;
+        }
+        .control-row select,
+        .control-row input[type="text"] {
+            background: #000;
+            color: #00ff00;
+            border: 1px solid #00ff00;
+            padding: 6px 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            cursor: pointer;
+            flex: 1;
+            min-width: 0;
+            box-sizing: border-box;
+        }
+        .control-row input[type="text"] {
+            cursor: text;
+        }
+        .control-row input[type="text"]::placeholder {
+            color: #444;
+        }
+        .control-row select:focus,
+        .control-row input[type="text"]:focus {
+            outline: none;
+            border-color: #00ffff;
+            color: #00ffff;
+        }
+        .control-row select option {
+            background: #111;
+            color: #00ff00;
+        }
+        .clear-filters-btn {
+            background: none;
+            border: 1px solid #444;
+            color: #666;
+            padding: 4px 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.75em;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+        .clear-filters-btn:hover {
+            border-color: #ff00ff;
+            color: #ff00ff;
+        }
+
+        /* Collection count */
+        .collection-count {
+            font-size: 0.75em;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        .collection-count span {
+            color: #00ffff;
+        }
+        
+        .collection-item { 
+            border: 1px solid #444; 
+            margin: 10px 0; 
+            padding: 10px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between; 
+            background: #222;
+            box-sizing: border-box;
+        }
+        .collection-item-info {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            flex: 1;
+            min-width: 0;
+        }
+        .collection-item-info:hover {
+            background: #2a2a2a;
+        }
+        .collection-item-info div {
+            min-width: 0;
+            word-break: break-word;
+        }
+        #collection-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .remove-btn { 
+            background: #ff0000; 
+            color: white; 
+            border: none; 
+            padding: 5px 10px; 
+            cursor: pointer;
+            flex-shrink: 0;
+            margin-left: 10px;
+            white-space: nowrap;
+        }
+
+        /* Modal Overlay */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .modal-overlay.active { display: flex; }
+
+        .modal-box {
+            background: #111;
+            border: 2px solid #00ff00;
+            padding: 30px;
+            max-width: 420px;
+            width: 100%;
+            text-align: center;
+            position: relative;
+            font-family: 'Courier New', monospace;
+            box-shadow: 0 0 30px rgba(0, 255, 0, 0.2);
+            box-sizing: border-box;
+            max-height: 90vh;
+            overflow-x: hidden;
+            overflow-y: auto;
+        }
+        .modal-box h2 { 
+            color: #00ffff; 
+            margin-top: 0; 
+            margin-bottom: 5px;
+            font-size: 1.1em;
+            text-transform: uppercase;
+            word-break: break-word;
+        }
+        .modal-box img { 
+            max-width: 100%;
+            border: 1px solid #00ff00; 
+            margin: 15px auto;
+            display: block;
+        }
+        .modal-meta { 
+            color: #fff; 
+            font-size: 0.9em; 
+            line-height: 2em;
+            border-top: 1px solid #333;
+            padding-top: 10px;
+            text-align: left;
+        }
+        .modal-meta .label { color: #888; }
+        .modal-meta .value { color: #00ffff; }
+        .modal-close {
+            position: absolute;
+            top: 8px; right: 12px;
+            background: none;
+            border: none;
+            color: #ff0000;
+            font-size: 1.4em;
+            cursor: pointer;
+            font-weight: bold;
+            line-height: 1;
+        }
+        .modal-close:hover { color: #ff6666; }
+
+        /* Mobile styles */
+        @media (max-width: 600px) {
+            .logo {
+                position: static;
+                display: block;
+                margin: 0 auto 20px auto;
+                max-width: 140px;
+            }
+            body {
+                margin-top: 20px;
+                padding: 15px;
+            }
+            .collection-item-info img {
+                width: 40px;
+                flex-shrink: 0;
+            }
+            .modal-box {
+                padding: 20px;
+            }
+            .control-row {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .control-row label {
+                min-width: unset;
+            }
+            .control-row select,
+            .control-row input[type="text"] {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <a href="index.html"><img src="images/90s_Geek_logo.webp" alt="90s Geek Logo" class="logo"></a>
+
+    <div class="nav">
+        <a href="index.html">← BACK TO SEARCH</a>
+    </div>
+
+    <h1>Saved Collection</h1>
+
+    <button class="export-btn" onclick="exportCollection()">DOWNLOAD CSV (EXCEL)</button>
+
+    <!-- Sort + Filter Controls -->
+    <div class="controls-panel">
+        <div class="controls-panel-title">> SORT &amp; FILTER</div>
+
+        <div class="control-row">
+            <label>Sort By:</label>
+            <select id="sort-select" onchange="applyControls()">
+                <option value="created_at|desc">Date Added (Newest First)</option>
+                <option value="created_at|asc">Date Added (Oldest First)</option>
+                <option value="name|asc">Name (A → Z)</option>
+                <option value="name|desc">Name (Z → A)</option>
+                <option value="year|desc">Year (Newest First)</option>
+                <option value="year|asc">Year (Oldest First)</option>
+                <option value="theme|asc">Theme (A → Z)</option>
+            </select>
+        </div>
+
+        <div class="control-row">
+            <label>Theme:</label>
+            <select id="filter-theme" onchange="applyControls()">
+                <option value="">All Themes</option>
+            </select>
+        </div>
+
+        <div class="control-row">
+            <label>Year:</label>
+            <select id="filter-year" onchange="applyControls()">
+                <option value="">All Years</option>
+            </select>
+        </div>
+
+        <div class="control-row">
+            <label>Search:</label>
+            <input type="text" id="filter-name" placeholder="Type to search by name..." oninput="applyControls()">
+        </div>
+
+        <button class="clear-filters-btn" onclick="clearFilters()">✕ CLEAR FILTERS</button>
+    </div>
+
+    <div class="collection-count" id="collection-count"></div>
+
+    <ul id="collection-list">
+        <li>Loading database...</li>
+    </ul>
+
+    <!-- Modal Popup -->
+    <div class="modal-overlay" id="set-modal" onclick="closeModal(event)">
+        <div class="modal-box" id="modal-content">
+            <button class="modal-close" onclick="document.getElementById('set-modal').classList.remove('active')">✕</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
