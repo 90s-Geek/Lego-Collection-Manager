@@ -55,7 +55,6 @@
             color: #000;
         }
 
-        /* Styling for the search result area */
         #result-container {
             display: none;
             background: #222;
@@ -65,15 +64,6 @@
             text-align: center;
         }
 
-        .save-btn {
-            background: #ff00ff; /* Neon pink to stand out */
-            color: #fff;
-            margin-top: 15px;
-            display: block;
-            width: 100%;
-        }
-
-        /* Styling for the collection list */
         #collection-list {
             list-style: none;
             padding: 0;
@@ -103,17 +93,23 @@
 
     <div class="search-box">
         <p>> INPUT SET ID:</p>
-        <input type="text" id="set-input" placeholder="e.g. 6080">
-        <button onclick="searchLego()">SEARCH</button>
+        <form id="search-form" onsubmit="handleSearch(event)">
+            <input type="text" id="set-input" placeholder="e.g. 6080">
+            <button type="submit">SEARCH</button>
+        </form>
     </div>
 
-    <div id="result-container">
-        </div>
+    <div id="result-container"></div>
 
     <h2>Saved to Supabase</h2>
-    <ul id="collection-list">
-        </ul>
+    <ul id="collection-list"></ul>
 
+    <script>
+        function handleSearch(event) {
+            event.preventDefault(); // This stops the page from reloading!
+            searchLego();
+        }
+    </script>
     <script src="script.js"></script>
 </body>
 </html>
