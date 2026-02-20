@@ -6,51 +6,61 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 // Initialize Supabase Client
 const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// State variable to hold the set currently being viewed
+// State variable to hold the set currently being viewed in the search result
 let currentSet = null;
 
 // --- INITIALIZATION ---
-// Load the collection from Supabase when the page opens
-window.onload = loadCollection;
+// This runs as soon as the page finishes loading
+window.onload = () => {
+    console.log("App Initialized. Loading collection...");
+    loadCollection();
+};
 
 // --- SEARCH FUNCTIONS ---
 async function searchLego() {
     const input = document.getElementById('set-input').value.trim();
-    if (!input) return alert("Enter a set number!");
+    if (!input) return alert("Please enter a LEGO set number.");
 
-    // Standardize set number: Rebrickable usually needs a suffix (e.g., 6080-1)
+    // Standardize set number: Rebrickable usually expects '6080-1'
     const setNum = input.includes('-') ? input : `${input}-1`;
     const url = `https://rebrickable.com/api/v3/lego/sets/${setNum}/`;
+
+    // Visual feedback
+    const container = document.getElementById('result-container');
+    container.style.display = 'block';
+    container.innerHTML = '<p>Scanning database...</p>';
 
     try {
         const response = await fetch(url, {
             headers: { 'Authorization': `key ${REBRICKABLE_API_KEY}` }
         });
 
-        if (response.status === 404) throw new Error("Set not found. Try adding '-1'.");
-        if (!response.ok) throw new Error("API Error: Check your Rebrickable key.");
+        if (response.status === 404) throw new Error("Set not found. Try a different number.");
+        if (!response.ok) throw new Error("Network error. Check your API key.");
 
         const data = await response.json();
-        currentSet = data; // Store globally so we can save it later
+        currentSet = data; // Store the data globally for the 'Save' function
         renderSearchResult(data);
     } catch (err) {
-        console.error(err);
-        alert(err.message);
+        container.innerHTML = `<p style="color:red;">Error: ${err.message}</p>`;
     }
 }
 
 function renderSearchResult(set) {
     const container = document.getElementById('result-container');
-    container.style.display = 'block';
-    
-    document.getElementById('set-title').innerText = `${set.name} (${set.year})`;
-    document.getElementById('set-meta').innerText = `Parts: ${set.num_parts} | Set ID: ${set.set_num}`;
-    document.getElementById('set-image').innerHTML = `<img src="${set.set_img_url}" alt="Lego Set" style="max-width:300px; border:2px solid #0f0;">`;
+    container.innerHTML = `
+        <h2 id="set-title">${set.name} (${set.year})</h2>
+        <div id="set-image">
+            <img src="${set.set_img_url}" alt="${set.name}" style="max-width:300px; border:2px solid #0f0;">
+        </div>
+        <p id="set-meta">Parts: ${set.num_parts} | Set ID: ${set.set_num}</p>
+        <button onclick="saveCurrentSet()" style="margin-top: 10px;">+ ADD TO COLLECTION</button>
+    `;
 }
 
 // --- SUPABASE DATABASE FUNCTIONS ---
 
-// SAVE: Send the current set to your 'lego_collection' table
+// SAVE: Adds the searched set to Supabase
 async function saveCurrentSet() {
     if (!currentSet) return;
 
@@ -65,57 +75,72 @@ async function saveCurrentSet() {
         ]);
 
     if (error) {
-        console.error("Save failed:", error.message);
-        alert("Error: Make sure you created the 'lego_collection' table in Supabase!");
+        console.error("Save Error:", error.message);
+        alert("Could not save to database. Check your RLS policies!");
     } else {
-        alert("Saved to your Supabase database!");
-        loadCollection(); // Refresh the display list
+        alert(`${currentSet.name} saved successfully!`);
+        loadCollection(); // Refresh the list view below
     }
 }
 
-// LOAD: Fetch all saved sets from Supabase
+// VIEW/LOAD: Fetches the entire collection from Supabase
 async function loadCollection() {
+    const listElement = document.getElementById('collection-list');
+    
+    // Fetch all items from the table
     const { data, error } = await supabase
         .from('lego_collection')
         .select('*')
         .order('created_at', { ascending: false });
 
     if (error) {
-        console.error("Fetch failed:", error.message);
-    } else {
-        renderCollectionList(data);
+        console.error("Fetch Error:", error.message);
+        listElement.innerHTML = `<li style="color:red;">Failed to connect to Supabase.</li>`;
+        return;
     }
+
+    renderCollectionList(data);
 }
 
-// DELETE: Remove a set from the database
+// DELETE: Removes a set from the database
 async function deleteSet(id) {
+    if (!confirm("Remove this set from your collection?")) return;
+
     const { error } = await supabase
         .from('lego_collection')
         .delete()
         .eq('id', id);
 
     if (error) {
-        alert("Delete failed: " + error.message);
+        alert("Delete error: " + error.message);
     } else {
-        loadCollection();
+        loadCollection(); // Refresh the list
     }
 }
 
-// --- UI RENDERING ---
+// UI RENDERING: Builds the HTML list for the saved sets
 function renderCollectionList(items) {
     const listElement = document.getElementById('collection-list');
-    listElement.innerHTML = ''; // Clear the list
+    listElement.innerHTML = ''; // Clear current display
+
+    if (items.length === 0) {
+        listElement.innerHTML = '<li>Collection is empty.</li>';
+        return;
+    }
 
     items.forEach((item) => {
         const li = document.createElement('li');
-        li.style.cssText = "border: 1px solid #444; margin: 10px 0; padding: 10px; display: flex; align-items: center; justify-content: space-between;";
+        li.className = "collection-item"; // Matches the CSS in your HTML
         
         li.innerHTML = `
             <div style="display: flex; align-items: center;">
-                <img src="${item.img_url}" width="60" style="margin-right: 15px;">
-                <span><strong>${item.name}</strong> (${item.set_num})</span>
+                <img src="${item.img_url}" width="60" style="margin-right: 15px; border: 1px solid #0f0;">
+                <div>
+                    <strong>${item.name}</strong><br>
+                    <small>Set #${item.set_num}</small>
+                </div>
             </div>
-            <button onclick="deleteSet(${item.id})" style="background:red; color:white; border:none; padding:5px; cursor:pointer;">REMOVE</button>
+            <button class="remove-btn" onclick="deleteSet(${item.id})">REMOVE</button>
         `;
         listElement.appendChild(li);
     });
