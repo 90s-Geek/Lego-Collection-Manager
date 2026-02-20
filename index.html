@@ -2,114 +2,33 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>90s Geek LEGO Collector</title>
+    <title>90s Geek LEGO Search</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
     <style>
-        body {
-            background-color: #1a1a1a;
-            color: #00ff00;
-            font-family: 'Courier New', Courier, monospace;
-            padding: 20px;
-            max-width: 800px;
-            margin: 0 auto;
-        }
-
-        h1, h2 {
-            border-bottom: 2px solid #00ff00;
-            padding-bottom: 10px;
-            text-transform: uppercase;
-        }
-
-        .search-box {
-            background: #222;
-            padding: 20px;
-            border: 1px solid #00ff00;
-            margin-bottom: 20px;
-        }
-
-        input {
-            background: #000;
-            color: #00ff00;
-            border: 1px solid #00ff00;
-            padding: 10px;
-            width: 200px;
-            font-family: inherit;
-        }
-
-        button {
-            background: #00ff00;
-            color: #000;
-            border: none;
-            padding: 10px 20px;
-            cursor: pointer;
-            font-weight: bold;
-            font-family: inherit;
-            text-transform: uppercase;
-            transition: 0.2s;
-        }
-
-        button:hover {
-            background: #fff;
-            color: #000;
-        }
-
-        #result-container {
-            display: none;
-            background: #222;
-            border: 2px solid #fff;
-            padding: 20px;
-            margin: 20px 0;
-            text-align: center;
-        }
-
-        #collection-list {
-            list-style: none;
-            padding: 0;
-        }
-
-        .collection-item {
-            border: 1px solid #444;
-            margin: 10px 0;
-            padding: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background: #222;
-        }
-
-        .remove-btn {
-            background: #ff0000;
-            color: white;
-            padding: 5px 10px;
-            font-size: 0.8rem;
-        }
+        body { background: #1a1a1a; color: #00ff00; font-family: 'Courier New', monospace; padding: 20px; }
+        .nav { margin-bottom: 20px; }
+        .nav a { color: #fff; text-decoration: none; border: 1px solid #fff; padding: 5px 10px; }
+        .search-box { background: #222; padding: 20px; border: 1px solid #00ff00; }
+        input { background: #000; color: #00ff00; border: 1px solid #00ff00; padding: 10px; }
+        button { background: #00ff00; color: #000; border: none; padding: 10px; cursor: pointer; font-weight: bold; }
+        #result-container { display: none; background: #222; border: 2px solid #fff; padding: 20px; margin-top: 20px; text-align: center; }
     </style>
 </head>
 <body>
+    <div class="nav">
+        <a href="collection.html">VIEW MY COLLECTION →</a>
+    </div>
 
-    <h1>LEGO Collection System v1.0</h1>
-
+    <h1>LEGO Search</h1>
     <div class="search-box">
-        <p>> INPUT SET ID:</p>
-        <form id="search-form" onsubmit="handleSearch(event)">
-            <input type="text" id="set-input" placeholder="e.g. 6080">
+        <form onsubmit="event.preventDefault(); searchLego();">
+            <input type="text" id="set-input" placeholder="Set # (e.g. 6080)">
             <button type="submit">SEARCH</button>
         </form>
     </div>
 
     <div id="result-container"></div>
 
-    <h2>Saved to Supabase</h2>
-    <ul id="collection-list"></ul>
-
-    <script>
-        function handleSearch(event) {
-            event.preventDefault(); // This stops the page from reloading!
-            searchLego();
-        }
-    </script>
     <script src="script.js"></script>
 </body>
 </html>
