@@ -1,26 +1,113 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>90s Geek LEGO Search</title>
-    <style>
-        body { font-family: 'Courier New', Courier, monospace; background: #222; color: #0f0; padding: 20px; }
-        #result-container { margin-top: 20px; border: 1px solid #0f0; padding: 15px; display: none; }
-        img { max-width: 300px; border: 2px solid #fff; }
-        input, button { padding: 10px; font-size: 1rem; }
-    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>90s Geek LEGO Collector</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <style>
+        /* 90s Geek Aesthetic */
+        body {
+            background-color: #1a1a1a;
+            color: #00ff00;
+            font-family: 'Courier New', Courier, monospace;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1, h2 {
+            border-bottom: 2px solid #00ff00;
+            padding-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .search-box {
+            background: #222;
+            padding: 20px;
+            border: 1px solid #00ff00;
+            margin-bottom: 20px;
+        }
+
+        input {
+            background: #000;
+            color: #00ff00;
+            border: 1px solid #00ff00;
+            padding: 10px;
+            width: 200px;
+            font-family: inherit;
+        }
+
+        button {
+            background: #00ff00;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-weight: bold;
+            font-family: inherit;
+            text-transform: uppercase;
+        }
+
+        button:hover {
+            background: #00cc00;
+        }
+
+        #result-container {
+            display: none;
+            background: #333;
+            border: 2px solid #fff;
+            padding: 20px;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        #collection-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .collection-item {
+            border: 1px solid #444;
+            margin: 10px 0;
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #222;
+        }
+
+        .remove-btn {
+            background: #ff0000;
+            color: white;
+            padding: 5px 10px;
+            font-size: 0.8rem;
+        }
+    </style>
 </head>
 <body>
-    <h1>Lego Set Database Search</h1>
-    <input type="text" id="set-input" placeholder="e.g. 6080 or 75192">
-    <button onclick="searchLego()">SEARCH</button>
+
+    <h1>LEGO Set Database</h1>
+
+    <div class="search-box">
+        <p>> Enter Set Number (e.g., 6080 or 75192):</p>
+        <input type="text" id="set-input" placeholder="Set #">
+        <button onclick="searchLego()">Search</button>
+    </div>
 
     <div id="result-container">
         <h2 id="set-title"></h2>
-        <p id="set-meta"></p>
         <div id="set-image"></div>
+        <p id="set-meta"></p>
+        <button onclick="saveCurrentSet()" style="margin-top: 10px;">+ Add to Collection</button>
     </div>
 
+    <h2>Saved Collection</h2>
+    <ul id="collection-list">
+        </ul>
+
     <script src="script.js"></script>
+
 </body>
 </html>
