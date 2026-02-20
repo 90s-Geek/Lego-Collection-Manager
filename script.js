@@ -102,17 +102,24 @@ async function loadCollection() {
     data.forEach(item => {
         const li = document.createElement('li');
         li.className = "collection-item";
-        // Safely encode item data for use in onclick
-        const itemJson = encodeURIComponent(JSON.stringify(item));
-        li.innerHTML = `
-            <div class="collection-item-info" onclick="showModal(JSON.parse(decodeURIComponent('${itemJson}')))">
-                <img src="${item.img_url}" width="50" style="margin-right:10px;border:1px solid #0f0;">
-                <div>
-                    <strong>${item.name}</strong> (${item.year})<br>
-                    <small style="color:#00ffff;">Theme: ${item.theme}</small>
-                </div>
-            </div>
-            <button class="remove-btn" onclick="deleteSet(${item.id})">REMOVE</button>`;
+
+        const infoDiv = document.createElement('div');
+        infoDiv.className = "collection-item-info";
+        infoDiv.innerHTML = `
+            <img src="${item.img_url}" width="50" style="margin-right:10px;border:1px solid #0f0;">
+            <div>
+                <strong>${item.name}</strong> (${item.year})<br>
+                <small style="color:#00ffff;">Theme: ${item.theme}</small>
+            </div>`;
+        infoDiv.addEventListener('click', () => showModal(item));
+
+        const removeBtn = document.createElement('button');
+        removeBtn.className = "remove-btn";
+        removeBtn.textContent = "REMOVE";
+        removeBtn.addEventListener('click', () => deleteSet(item.id));
+
+        li.appendChild(infoDiv);
+        li.appendChild(removeBtn);
         list.appendChild(li);
     });
 }
