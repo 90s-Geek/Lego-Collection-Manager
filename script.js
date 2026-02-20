@@ -18,30 +18,41 @@ async function searchLego() {
     if (!input) return alert("Enter a set number!");
 
     const setNum = input.includes('-') ? input : `${input}-1`;
-    const url = `https://rebrickable.com/api/v3/lego/sets/${setNum}/`;
+    const setUrl = `https://rebrickable.com/api/v3/lego/sets/${setNum}/`;
     const container = document.getElementById('result-container');
 
     container.style.display = 'block';
     container.innerHTML = '<p>Accessing Rebrickable...</p>';
 
     try {
-        const response = await fetch(url, { headers: { 'Authorization': `key ${REBRICKABLE_API_KEY}` } });
+        // 1. Fetch Set Data
+        const response = await fetch(setUrl, { headers: { 'Authorization': `key ${REBRICKABLE_API_KEY}` } });
         if (!response.ok) throw new Error("Set not found.");
-        const data = await response.json();
-        currentSet = data;
-        renderSearchResult(data);
+        const setData = await response.json();
+
+        // 2. Fetch Theme Name using theme_id
+        const themeUrl = `https://rebrickable.com/api/v3/lego/themes/${setData.theme_id}/`;
+        const themeResponse = await fetch(themeUrl, { headers: { 'Authorization': `key ${REBRICKABLE_API_KEY}` } });
+        const themeData = await themeResponse.json();
+
+        // 3. Attach name to currentSet object
+        currentSet = {
+            ...setData,
+            theme_name: themeData.name || "Unknown Theme"
+        };
+
+        renderSearchResult(currentSet);
     } catch (err) {
         container.innerHTML = `<p style="color:red;">${err.message}</p>`;
     }
 }
 
 function renderSearchResult(set) {
-    // Added Year and Theme display to the UI
     document.getElementById('result-container').innerHTML = `
         <h2>${set.name}</h2>
         <div class="set-meta">
             <strong>Year:</strong> ${set.year} | 
-            <strong>Theme ID:</strong> ${set.theme_id} | 
+            <strong>Theme:</strong> ${set.theme_name} | 
             <strong>Set #:</strong> ${set.set_num}
         </div>
         <img src="${set.set_img_url}" style="max-width:250px; border:1px solid #0f0;">
@@ -54,14 +65,13 @@ function renderSearchResult(set) {
 async function saveCurrentSet() {
     if (!currentSet) return;
     
-    // Updated to save year and theme into Supabase
     const { error } = await db.from('lego_collection').insert([
         { 
             set_num: currentSet.set_num, 
             name: currentSet.name, 
             img_url: currentSet.set_img_url,
             year: currentSet.year,
-            theme: currentSet.theme_id.toString() 
+            theme: currentSet.theme_name // Saving the string name (e.g., "Star Wars")
         }
     ]);
 
@@ -82,8 +92,8 @@ async function loadCollection() {
             <div style="display:flex;align-items:center;">
                 <img src="${item.img_url}" width="50" style="margin-right:10px;border:1px solid #0f0;">
                 <div>
-                    <div>${item.name} (${item.year})</div>
-                    <small style="color:#aaa;">Set #${item.set_num}</small>
+                    <div><strong>${item.name}</strong> (${item.year})</div>
+                    <small style="color:#00ffff;">Theme: ${item.theme || 'N/A'}</small>
                 </div>
             </div>
             <button class="remove-btn" onclick="deleteSet(${item.id})">REMOVE</button>`;
@@ -102,7 +112,7 @@ async function exportCollection() {
     if (error || !data.length) return alert("Export failed or collection empty.");
 
     let csv = "Set Number,Name,Year,Theme\n" + 
-              data.map(i => `${i.set_num},"${i.name}",${i.year},${i.theme}`).join("\n");
+              data.map(i => `${i.set_num},"${i.name}",${i.year},"${i.theme}"`).join("\n");
               
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
