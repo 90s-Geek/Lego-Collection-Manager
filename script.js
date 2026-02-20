@@ -102,13 +102,64 @@ async function loadCollection() {
     data.forEach(item => {
         const li = document.createElement('li');
         li.className = "collection-item";
+        // Safely encode item data for use in onclick
+        const itemJson = encodeURIComponent(JSON.stringify(item));
         li.innerHTML = `
-            <div style="display:flex;align-items:center;">
+            <div class="collection-item-info" onclick="showModal(JSON.parse(decodeURIComponent('${itemJson}')))">
                 <img src="${item.img_url}" width="50" style="margin-right:10px;border:1px solid #0f0;">
-                <div><strong>${item.name}</strong> (${item.year})<br><small style="color:#00ffff;">Theme: ${item.theme}</small></div>
+                <div>
+                    <strong>${item.name}</strong> (${item.year})<br>
+                    <small style="color:#00ffff;">Theme: ${item.theme}</small>
+                </div>
             </div>
             <button class="remove-btn" onclick="deleteSet(${item.id})">REMOVE</button>`;
         list.appendChild(li);
     });
 }
-// (deleteSet and exportCollection remain the same as previous working versions)
+
+function showModal(item) {
+    document.getElementById('modal-content').innerHTML = `
+        <button class="modal-close" onclick="document.getElementById('set-modal').classList.remove('active')">✕</button>
+        <h2>${item.name}</h2>
+        <img src="${item.img_url}" alt="${item.name}">
+        <div class="modal-meta">
+            <div><span class="label">Set #: </span><span class="value">${item.set_num || 'N/A'}</span></div>
+            <div><span class="label">Year: </span><span class="value">${item.year}</span></div>
+            <div><span class="label">Theme: </span><span class="value">${item.theme}</span></div>
+        </div>
+    `;
+    document.getElementById('set-modal').classList.add('active');
+}
+
+function closeModal(e) {
+    // Only close if clicking the dark backdrop, not the modal box itself
+    if (e.target === document.getElementById('set-modal')) {
+        document.getElementById('set-modal').classList.remove('active');
+    }
+}
+
+async function deleteSet(id) {
+    if (!confirm("Remove this set from your collection?")) return;
+    const { error } = await db.from('lego_collection').delete().eq('id', id);
+    if (error) {
+        alert("Error removing set: " + error.message);
+    } else {
+        loadCollection(); // Refresh the list
+    }
+}
+
+function exportCollection() {
+    db.from('lego_collection').select('*').order('created_at', { ascending: false }).then(({ data, error }) => {
+        if (error || !data.length) return alert("No data to export.");
+        const headers = ['set_num', 'name', 'theme', 'year', 'img_url'];
+        const rows = data.map(item => headers.map(h => `"${(item[h] || '').toString().replace(/"/g, '""')}"`).join(','));
+        const csv = [headers.join(','), ...rows].join('\n');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'lego_collection.csv';
+        a.click();
+        URL.revokeObjectURL(url);
+    });
+}
