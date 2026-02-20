@@ -6,7 +6,6 @@
     <title>90s Geek LEGO Search</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        /* Logo placed in the absolute top-left corner */
         .logo { 
             position: absolute;
             top: 50px; 
@@ -22,15 +21,31 @@
             font-family: 'Courier New', monospace; 
             padding: 20px; 
             max-width: 800px; 
-            /* Added top margin so content starts below the logo height */
             margin: 220px auto 0 auto; 
+            box-sizing: border-box;
         }
 
         .nav { margin-bottom: 20px; }
         .nav a { color: #fff; text-decoration: none; border: 1px solid #00ff00; padding: 5px 10px; }
         .nav a:hover { background: #004400; }
+
         .search-box { background: #222; padding: 20px; border: 1px solid #00ff00; margin-bottom: 20px; }
-        input { background: #000; color: #00ff00; border: 1px solid #00ff00; padding: 10px; width: 250px; }
+
+        .search-box form {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        input { 
+            background: #000; 
+            color: #00ff00; 
+            border: 1px solid #00ff00; 
+            padding: 10px; 
+            width: 250px;
+            box-sizing: border-box;
+        }
+
         button { background: #00ff00; color: #000; border: none; padding: 10px; cursor: pointer; font-weight: bold; }
         button:hover { background: #00cc00; }
 
@@ -46,6 +61,29 @@
         .set-meta strong { color: #00ffff; }
         .save-btn { background: #ff00ff; color: white; margin-top: 15px; width: 100%; padding: 12px; }
         .save-btn:hover { background: #d400d4; }
+
+        /* Mobile styles */
+        @media (max-width: 600px) {
+            .logo {
+                position: static;
+                display: block;
+                margin: 0 auto 20px auto;
+                max-width: 140px;
+            }
+            body {
+                margin-top: 20px;
+                padding: 15px;
+            }
+            input {
+                width: 100%;
+            }
+            button[type="submit"] {
+                width: 100%;
+            }
+            .search-box form {
+                flex-direction: column;
+            }
+        }
     </style>
 </head>
 <body>
@@ -58,7 +96,7 @@
     <h1>LEGO Search</h1>
     <div class="search-box">
         <form onsubmit="event.preventDefault(); searchLego();">
-            <input type="text" id="set-input" placeholder="Set # (e.g. 6080)">
+            <input type="text" id="set-input" placeholder="Set # (e.g. 6080)" inputmode="numeric">
             <button type="submit">SEARCH</button>
         </form>
     </div>
