@@ -8,7 +8,7 @@
     <style>
                 .logo { 
             position: fixed;
-            top: 50px; 
+            top: 20px; 
             left: 50px; 
             max-width: 120px; 
             max-height: 120px; 
@@ -27,8 +27,9 @@
             box-sizing: border-box;
         }
 
-        .nav { margin-bottom: 20px; }
-        .nav a { color: #fff; text-decoration: none; border: 1px solid #00ff00; padding: 5px 10px; }
+                .nav { margin-bottom: 20px; display: flex; gap: 8px; }
+        .nav a { color: #fff; text-decoration: none; border: 1px solid #00ff00; padding: 8px 16px; min-width: 180px; text-align: center; box-sizing: border-box; }
+        .nav a:hover { background: #004400; }
         
         .export-btn { 
             background: #00ffff; 
@@ -401,7 +402,7 @@
 
     <div class="nav">
         <a href="index.html">← BACK TO SEARCH</a>
-        <a href="wantlist.html" style="margin-left:8px;">♥ WANT LIST →</a>
+        <a href="wantlist.html">♥ WANT LIST →</a>
     </div>
 
     <h1>Saved Collection</h1>
