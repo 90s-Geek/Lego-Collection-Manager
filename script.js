@@ -11,8 +11,8 @@ const QUICK_LINKS = [
     { label: 'eBay',       url: 'https://www.ebay.com/sch/i.html?_nkw=lego' },
     { label: 'Rebrickable', url: 'https://rebrickable.com' },
     { label: 'BrickLink',  url: 'https://www.bricklink.com' },
-    { label: 'BrickOwl',   url: 'https://www.brickowl.com' },
-    { label: 'BrickEconomy',   url: 'https://www.brickeconomy.com' },
+    { label: 'BrickOwl',    url: 'https://www.brickowl.com' },
+    { label: 'BrickEconomy', url: 'https://www.brickeconomy.com' },
 ];
 
 function renderQuickLinks() {
@@ -24,7 +24,28 @@ function renderQuickLinks() {
         ).join('');
 }
 
-// --- Theme Session Cache ---
+// --- Condition Options (single source of truth) ---
+const CONDITIONS = [
+    { value: 'Sealed',     label: 'Sealed',     color: '#00ff00' },
+    { value: 'Complete',   label: 'Complete',   color: '#00ffff' },
+    { value: 'Incomplete', label: 'Incomplete', color: '#ffaa00' },
+    { value: 'Display',    label: 'Display',    color: '#ff00ff' },
+];
+
+function conditionBadge(condition) {
+    const c = CONDITIONS.find(x => x.value === condition);
+    if (!c) return '';
+    return `<span style="font-size:0.7em;border:1px solid ${c.color};color:${c.color};padding:1px 6px;margin-left:6px;vertical-align:middle;">${c.label}</span>`;
+}
+
+function conditionSelectHTML(selected = '') {
+    return `<select id="condition-select" style="background:#000;color:#00ff00;border:1px solid #00ff00;padding:6px 10px;font-family:'Courier New',monospace;font-size:0.85em;margin-top:10px;width:100%;">
+        <option value="">— Set Condition —</option>
+        ${CONDITIONS.map(c => `<option value="${c.value}"${selected === c.value ? ' selected' : ''}>${c.label}</option>`).join('')}
+    </select>`;
+}
+
+
 // Avoids redundant Rebrickable API calls for themes already fetched this session
 const themeCache = {};
 
@@ -176,7 +197,8 @@ function renderSearchResult(set) {
         </div>
         <img src="${set.set_img_url}" style="max-width:250px; border:1px solid #0f0; margin-bottom: 10px;">
         <p>Parts: ${set.num_parts}</p>
-        <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center;">
+        ${conditionSelectHTML()}
+        <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-top:10px;">
             <button class="save-btn" onclick="saveCurrentSet()">+ ADD TO COLLECTION</button>
             <button class="wantlist-btn" onclick="saveToWantList()">♥ ADD TO WANT LIST</button>
         </div>
@@ -203,12 +225,15 @@ async function saveCurrentSet() {
         return;
     }
 
+    const condition = document.getElementById('condition-select')?.value || '';
+
     const { error } = await db.from('lego_collection').insert([{ 
         set_num: currentSet.set_num, 
         name: currentSet.name, 
         img_url: currentSet.set_img_url,
         year: currentSet.year,
-        theme: currentSet.theme_name 
+        theme: currentSet.theme_name,
+        condition: condition || null
     }]);
 
     if (error) {
@@ -341,6 +366,20 @@ function populateFilterDropdowns(data) {
             yearSelect.appendChild(opt);
         });
     }
+
+    // Condition — fixed list, only on collection page
+    const conditionSelect = document.getElementById('filter-condition');
+    if (conditionSelect) {
+        const currentCondition = conditionSelect.value;
+        conditionSelect.innerHTML = '<option value="">All Conditions</option>';
+        CONDITIONS.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.value;
+            opt.textContent = c.label;
+            if (c.value === currentCondition) opt.selected = true;
+            conditionSelect.appendChild(opt);
+        });
+    }
 }
 
 function applyControls() {
@@ -349,15 +388,17 @@ function applyControls() {
     const [sortCol, sortDir] = sortSelect ? sortSelect.value.split('|') : ['created_at', 'desc'];
 
     // Read filters
-    const filterTheme = (document.getElementById('filter-theme')?.value || '').toLowerCase();
-    const filterYear  = document.getElementById('filter-year')?.value || '';
-    const filterName  = (document.getElementById('filter-name')?.value || '').toLowerCase().trim();
+    const filterTheme     = (document.getElementById('filter-theme')?.value || '').toLowerCase();
+    const filterYear      = document.getElementById('filter-year')?.value || '';
+    const filterName      = (document.getElementById('filter-name')?.value || '').toLowerCase().trim();
+    const filterCondition = document.getElementById('filter-condition')?.value || '';
 
     // Filter
     let results = collectionCache.filter(item => {
-        if (filterTheme && (item.theme || '').toLowerCase() !== filterTheme) return false;
-        if (filterYear  && String(item.year) !== filterYear) return false;
-        if (filterName  && !(item.name || '').toLowerCase().includes(filterName)) return false;
+        if (filterTheme     && (item.theme || '').toLowerCase() !== filterTheme) return false;
+        if (filterYear      && String(item.year) !== filterYear) return false;
+        if (filterName      && !(item.name || '').toLowerCase().includes(filterName)) return false;
+        if (filterCondition && (item.condition || '') !== filterCondition) return false;
         return true;
     });
 
@@ -378,12 +419,14 @@ function applyControls() {
 }
 
 function clearFilters() {
-    const themeEl = document.getElementById('filter-theme');
-    const yearEl  = document.getElementById('filter-year');
-    const nameEl  = document.getElementById('filter-name');
-    if (themeEl) themeEl.value = '';
-    if (yearEl)  yearEl.value  = '';
-    if (nameEl)  nameEl.value  = '';
+    const themeEl     = document.getElementById('filter-theme');
+    const yearEl      = document.getElementById('filter-year');
+    const nameEl      = document.getElementById('filter-name');
+    const conditionEl = document.getElementById('filter-condition');
+    if (themeEl)     themeEl.value     = '';
+    if (yearEl)      yearEl.value      = '';
+    if (nameEl)      nameEl.value      = '';
+    if (conditionEl) conditionEl.value = '';
     if (document.body.dataset.page === 'wantlist') {
         applyWantlistControls();
     } else {
@@ -425,7 +468,7 @@ function renderCollection(data) {
         infoDiv.innerHTML = `
             <img src="${item.img_url}" width="${currentView === 'grid' ? '100' : '50'}" style="margin-right:${currentView === 'grid' ? '0' : '10px'};border:1px solid #0f0;">
             <div>
-                <strong>${item.name}</strong> (${item.year})<br>
+                <strong>${item.name}</strong> (${item.year})${conditionBadge(item.condition)}<br>
                 <small style="color:#00ffff;">Theme: ${item.theme}</small>
             </div>`;
         infoDiv.addEventListener('click', () => showModal(item));
@@ -450,9 +493,28 @@ function showModal(item) {
             <div><span class="label">Set #: </span><span class="value">${item.set_num || 'N/A'}</span></div>
             <div><span class="label">Year: </span><span class="value">${item.year}</span></div>
             <div><span class="label">Theme: </span><span class="value">${item.theme}</span></div>
+            <div style="margin-top:10px;">
+                <span class="label">Condition: </span>
+                ${conditionSelectHTML(item.condition || '')}
+                <button onclick="updateCondition(${item.id})" style="margin-top:8px;width:100%;background:#00ff00;color:#000;border:none;padding:7px;font-family:'Courier New',monospace;font-weight:bold;cursor:pointer;">UPDATE CONDITION</button>
+            </div>
         </div>
     `;
     document.getElementById('set-modal').classList.add('active');
+}
+
+async function updateCondition(id) {
+    const condition = document.getElementById('condition-select')?.value || null;
+    const { error } = await db.from('lego_collection').update({ condition }).eq('id', id);
+    if (error) {
+        alert("Error updating condition: " + error.message);
+        return;
+    }
+    // Update cache in-place
+    const item = collectionCache.find(i => i.id === id);
+    if (item) item.condition = condition;
+    applyControls();
+    document.getElementById('set-modal').classList.remove('active');
 }
 
 function closeModal(e) {
@@ -671,7 +733,7 @@ function exportWantlist() {
 function exportCollection() {
     db.from('lego_collection').select('*').order('created_at', { ascending: false }).then(({ data, error }) => {
         if (error || !data.length) return alert("No data to export.");
-        const headers = ['set_num', 'name', 'theme', 'year', 'img_url'];
+        const headers = ['set_num', 'name', 'theme', 'year', 'condition', 'img_url'];
         const rows = data.map(item => headers.map(h => `"${(item[h] || '').toString().replace(/"/g, '""')}"`).join(','));
         const csv = [headers.join(','), ...rows].join('\n');
         const blob = new Blob([csv], { type: 'text/csv' });

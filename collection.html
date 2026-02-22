@@ -7,7 +7,7 @@
     <link rel="icon" type="image/webp" href="images/90s_Geek_logo.webp">
     <title>My LEGO Collection</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="styles.css?v=3">
+    <link rel="stylesheet" href="styles.css?v=4">
     <!-- No page-specific styles needed — collection uses all shared defaults -->
 </head>
 <body>
@@ -34,6 +34,7 @@
                 <option value="year|desc">Year (Newest First)</option>
                 <option value="year|asc">Year (Oldest First)</option>
                 <option value="theme|asc">Theme (A → Z)</option>
+                <option value="condition|asc">Condition (A → Z)</option>
             </select>
         </div>
         <div class="control-row">
@@ -51,6 +52,12 @@
         <div class="control-row">
             <label>Search:</label>
             <input type="text" id="filter-name" placeholder="Type to search by name..." oninput="debouncedFilter()">
+        </div>
+        <div class="control-row">
+            <label>Condition:</label>
+            <select id="filter-condition" onchange="applyControls()">
+                <option value="">All Conditions</option>
+            </select>
         </div>
         <button class="clear-filters-btn" onclick="clearFilters()">✕ CLEAR FILTERS</button>
     </div>
