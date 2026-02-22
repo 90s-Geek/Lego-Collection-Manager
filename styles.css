@@ -342,15 +342,6 @@ button:hover {
     gap: 0;
 }
 .collection-count span { color: var(--cyan); }
-.count-cursor {
-    color: var(--green);
-    animation: cursorBlink 1.1s step-end infinite;
-    font-size: 0.85em;
-}
-@keyframes cursorBlink {
-    0%, 100% { opacity: 1; }
-    50%       { opacity: 0; }
-}
 
 .view-toggle { display: flex; gap: 5px; }
 .view-toggle button {
