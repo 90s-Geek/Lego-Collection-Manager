@@ -31,7 +31,7 @@ button:hover { background: #00cc00; }
 /* --- Logo --- */
 .logo {
     position: fixed;
-    top: 20px;
+    top: 50px;
     left: 50px;
     max-width: 120px;
     max-height: 120px;
