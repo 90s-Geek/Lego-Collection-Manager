@@ -12,6 +12,7 @@ const QUICK_LINKS = [
     { label: 'Rebrickable', url: 'https://rebrickable.com' },
     { label: 'BrickLink',  url: 'https://www.bricklink.com' },
     { label: 'BrickOwl',   url: 'https://www.brickowl.com' },
+    { label: 'BrickEconomy',   url: 'https://www.brickeconomy.com' },
 ];
 
 function renderQuickLinks() {
