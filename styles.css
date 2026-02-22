@@ -105,7 +105,7 @@ button:hover { background: #00cc00; }
 .export-btn {
     background: #00ffff;
     color: #000;
-    margin-bottom: 20px;
+    margin-bottom: 10px;
     padding: 10px;
     border: none;
     cursor: pointer;
@@ -115,6 +115,23 @@ button:hover { background: #00cc00; }
     font-family: 'Courier New', monospace;
 }
 .export-btn:hover { background: #00cccc; }
+
+/* --- Import Button --- */
+.import-btn {
+    background: #000;
+    color: #00ffff;
+    border: 1px solid #00ffff;
+    margin-bottom: 20px;
+    padding: 10px;
+    cursor: pointer;
+    font-weight: bold;
+    width: 100%;
+    box-sizing: border-box;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85em;
+    letter-spacing: 1px;
+}
+.import-btn:hover { background: #001a1a; }
 
 /* --- Controls Panel (Sort + Filter) --- */
 .controls-panel {

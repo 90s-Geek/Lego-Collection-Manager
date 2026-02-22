@@ -7,7 +7,7 @@
     <link rel="icon" type="image/webp" href="images/90s_Geek_logo.webp">
     <title>My LEGO Collection</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="styles.css?v=4">
+    <link rel="stylesheet" href="styles.css?v=5">
     <!-- No page-specific styles needed — collection uses all shared defaults -->
 </head>
 <body>
@@ -21,6 +21,24 @@
     <h1>Saved Collection</h1>
 
     <button class="export-btn" onclick="exportCollection()">DOWNLOAD CSV (EXCEL)</button>
+    <button class="import-btn" onclick="document.getElementById('import-modal').classList.add('active')">IMPORT CSV</button>
+
+    <!-- Import Modal -->
+    <div class="modal-overlay" id="import-modal" onclick="closeImportModal(event)">
+        <div class="modal-box" id="import-modal-box">
+            <button class="modal-close" onclick="document.getElementById('import-modal').classList.remove('active')">✕</button>
+            <h2>Import CSV</h2>
+            <div style="text-align:left; font-size:0.8em; color:#888; margin-bottom:15px; line-height:1.7em;">
+                Upload a CSV with a <span style="color:#00ffff;">set_num</span> column.<br>
+                Optional columns: <span style="color:#00ffff;">name, theme, year, condition</span><br>
+                Missing data will be fetched from Rebrickable.<br>
+                Duplicates already in your collection will be skipped.
+            </div>
+            <input type="file" id="csv-file-input" accept=".csv" style="display:none;" onchange="handleCSVFile(event)">
+            <button onclick="document.getElementById('csv-file-input').click()" style="width:100%;margin-bottom:10px;">SELECT CSV FILE</button>
+            <div id="import-preview"></div>
+        </div>
+    </div>
 
     <div class="controls-panel">
         <div class="controls-panel-title">> SORT &amp; FILTER</div>

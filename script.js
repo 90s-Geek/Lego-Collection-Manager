@@ -714,7 +714,160 @@ async function deleteFromWantlist(id) {
     }
 }
 
-function exportWantlist() {
+// --- CSV IMPORT ---
+
+function closeImportModal(e) {
+    if (e.target === document.getElementById('import-modal')) {
+        document.getElementById('import-modal').classList.remove('active');
+    }
+}
+
+function parseCSV(text) {
+    const lines = text.trim().split(/\r?\n/);
+    if (lines.length < 2) return null;
+
+    // Parse header — strip BOM, quotes, whitespace
+    const headers = lines[0].replace(/^\uFEFF/, '').split(',').map(h =>
+        h.trim().replace(/^"|"$/g, '').toLowerCase()
+    );
+
+    if (!headers.includes('set_num')) return null;
+
+    return lines.slice(1).map(line => {
+        // Handle quoted fields containing commas
+        const fields = [];
+        let current = '';
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+            if (line[i] === '"') {
+                inQuotes = !inQuotes;
+            } else if (line[i] === ',' && !inQuotes) {
+                fields.push(current.trim());
+                current = '';
+            } else {
+                current += line[i];
+            }
+        }
+        fields.push(current.trim());
+
+        const row = {};
+        headers.forEach((h, i) => { row[h] = (fields[i] || '').trim(); });
+        return row;
+    }).filter(row => row.set_num); // Skip blank rows
+}
+
+async function handleCSVFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const preview = document.getElementById('import-preview');
+    preview.innerHTML = '<p style="color:#888;">Reading file...</p>';
+
+    const text = await file.text();
+    const rows = parseCSV(text);
+
+    if (!rows) {
+        preview.innerHTML = '<p style="color:#ff6666;">Invalid CSV — must have a <strong>set_num</strong> column.</p>';
+        return;
+    }
+
+    preview.innerHTML = `<p style="color:#888;">Found <span style="color:#00ffff;">${rows.length}</span> row${rows.length !== 1 ? 's' : ''}. Checking for duplicates...</p>`;
+
+    // Fetch existing set_nums from collection to detect duplicates
+    const { data: existing } = await db.from('lego_collection').select('set_num');
+    const existingNums = new Set((existing || []).map(r => r.set_num));
+
+    // Normalise set_num (add -1 suffix if missing)
+    const normalise = s => /^\d+$/.test(s.trim()) ? `${s.trim()}-1` : s.trim();
+
+    const toImport = rows.map(r => ({ ...r, set_num: normalise(r.set_num) }))
+                         .filter(r => !existingNums.has(r.set_num));
+    const skipped  = rows.length - toImport.length;
+
+    if (toImport.length === 0) {
+        preview.innerHTML = `<p style="color:#ffaa00;">All ${rows.length} sets are already in your collection. Nothing to import.</p>`;
+        return;
+    }
+
+    preview.innerHTML = `
+        <div style="border:1px solid #333;padding:12px;margin-top:10px;text-align:left;font-size:0.8em;max-height:200px;overflow-y:auto;">
+            <div style="color:#888;margin-bottom:8px;">
+                Ready to import <span style="color:#00ffff;">${toImport.length}</span> set${toImport.length !== 1 ? 's' : ''}
+                ${skipped ? `<span style="color:#ffaa00;"> (${skipped} duplicate${skipped !== 1 ? 's' : ''} skipped)</span>` : ''}
+            </div>
+            ${toImport.map(r => `<div style="color:#00ff00;margin-bottom:2px;">+ ${r.set_num}${r.name ? ' — ' + r.name : ''}</div>`).join('')}
+        </div>
+        <button id="confirm-import-btn" onclick="confirmImport()" style="width:100%;margin-top:10px;background:#00ff00;color:#000;padding:10px;font-family:'Courier New',monospace;font-weight:bold;border:none;cursor:pointer;">
+            ↑ IMPORT ${toImport.length} SET${toImport.length !== 1 ? 'S' : ''}
+        </button>
+    `;
+
+    // Store pending rows on button for confirmImport to access
+    document.getElementById('confirm-import-btn').dataset.pending = JSON.stringify(toImport);
+}
+
+async function confirmImport() {
+    const btn = document.getElementById('confirm-import-btn');
+    const toImport = JSON.parse(btn.dataset.pending || '[]');
+    if (!toImport.length) return;
+
+    const preview = document.getElementById('import-preview');
+    btn.disabled = true;
+    btn.textContent = 'IMPORTING...';
+
+    let imported = 0;
+    let failed = 0;
+    const failedSets = [];
+
+    for (const row of toImport) {
+        try {
+            let { set_num, name, theme, year, condition } = row;
+
+            // If name/theme/year missing, fetch from Rebrickable
+            if (!name || !theme || !year) {
+                const res = await fetch(`https://rebrickable.com/api/v3/lego/sets/${set_num}/`, {
+                    headers: { 'Authorization': `key ${REBRICKABLE_API_KEY}` }
+                });
+                if (!res.ok) throw new Error('Not found on Rebrickable');
+                const data = await res.json();
+                name  = name  || data.name;
+                year  = year  || data.year;
+                theme = theme || await fetchTheme(data.theme_id);
+            }
+
+            const validConditions = CONDITIONS.map(c => c.value);
+            const cleanCondition = validConditions.includes(condition) ? condition : null;
+
+            const { error } = await db.from('lego_collection').insert([{
+                set_num, name,
+                img_url: `https://cdn.rebrickable.com/media/sets/${set_num}.jpg`,
+                year: parseInt(year) || null,
+                theme,
+                condition: cleanCondition
+            }]);
+
+            if (error) throw new Error(error.message);
+            imported++;
+
+            // Update progress
+            btn.textContent = `IMPORTING... ${imported}/${toImport.length}`;
+        } catch (err) {
+            failed++;
+            failedSets.push(`${row.set_num} (${err.message})`);
+        }
+    }
+
+    // Reload collection cache with fresh data
+    await loadCollection();
+    document.getElementById('import-modal').classList.remove('active');
+    document.getElementById('csv-file-input').value = '';
+
+    let msg = `Import complete: ${imported} set${imported !== 1 ? 's' : ''} added.`;
+    if (failed) msg += `\n\nFailed (${failed}):\n${failedSets.join('\n')}`;
+    alert(msg);
+}
+
+
     db.from('lego_wantlist').select('*').order('created_at', { ascending: false }).then(({ data, error }) => {
         if (error || !data.length) return alert("No data to export.");
         const headers = ['set_num', 'name', 'theme', 'year', 'img_url'];
