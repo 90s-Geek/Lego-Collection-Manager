@@ -6,6 +6,23 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let currentSet = null;
 
+// --- Quick Links (single source of truth for all pages) ---
+const QUICK_LINKS = [
+    { label: 'eBay',       url: 'https://www.ebay.com/sch/i.html?_nkw=lego' },
+    { label: 'Rebrickable', url: 'https://rebrickable.com' },
+    { label: 'BrickLink',  url: 'https://www.bricklink.com' },
+    { label: 'BrickOwl',   url: 'https://www.brickowl.com' },
+];
+
+function renderQuickLinks() {
+    const nav = document.querySelector('.quick-links');
+    if (!nav) return;
+    nav.innerHTML = '<span class="quick-links-title">LINKS</span>' +
+        QUICK_LINKS.map(link =>
+            `<a href="${link.url}" target="_blank" rel="noopener">${link.label}</a>`
+        ).join('');
+}
+
 // --- Theme Session Cache ---
 // Avoids redundant Rebrickable API calls for themes already fetched this session
 const themeCache = {};
@@ -38,6 +55,7 @@ function debouncedFilter() {
 }
 
 window.onload = () => {
+    renderQuickLinks();
     // Check if the dashboard container exists (index.html)
     if (document.getElementById('last-added-container')) {
         loadLastAdded();
