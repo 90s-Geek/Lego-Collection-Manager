@@ -341,7 +341,7 @@ function renderSearchResult(set) {
             <strong>Year:</strong> ${set.year} | <strong>Theme:</strong> ${set.theme_name} | 
             <strong>Set #:</strong> <a href="https://rebrickable.com/sets/${set.set_num}/" target="_blank" rel="noopener" style="color:#00ffff;text-decoration:none;" title="View on Rebrickable">${set.set_num} ↗</a>
         </div>
-        <img src="${set.set_img_url}" alt="${set.name}" style="max-width:250px; border:1px solid #0f0; margin-bottom: 10px;" onerror="this.onerror=null;this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'250\\' height=\\'200\\'><rect width=\\'250\\' height=\\'200\\' fill=\\'%23111\\'/><text x=\\'125\\' y=\\'90\\' text-anchor=\\'middle\\' font-family=\\'monospace\\' font-size=\\'40\\' fill=\\'%23333\\'>⊘</text><text x=\\'125\\' y=\\'120\\' text-anchor=\\'middle\\' font-family=\\'monospace\\' font-size=\\'12\\' fill=\\'%23333\\'>NO IMAGE</text></svg>';">
+        <img id="search-result-img" src="${set.set_img_url}" alt="${set.name}" style="max-width:250px; border:1px solid #0f0; margin-bottom: 10px;">
         <p>Parts: ${set.num_parts}</p>
         ${conditionSelectHTML()}
         <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-top:10px;">
@@ -349,6 +349,8 @@ function renderSearchResult(set) {
             <button class="wantlist-btn" onclick="saveToWantList()">♥ ADD TO WANT LIST</button>
         </div>
     `;
+    const img = document.getElementById('search-result-img');
+    if (img) attachImgFallback(img);
 }
 
 async function saveCurrentSet() {
@@ -667,7 +669,7 @@ function showModal(item) {
         <button class="modal-close" onclick="document.getElementById('set-modal').classList.remove('active')">✕</button>
         <h2>${item.name}</h2>
         <div class="modal-img-wrap">
-            <img src="${item.img_url}" alt="${item.name}" onerror="this.onerror=null;this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'200\\' height=\\'160\\'><rect width=\\'200\\' height=\\'160\\' fill=\\'%23111\\'/><text x=\\'100\\' y=\\'72\\' text-anchor=\\'middle\\' font-family=\\'monospace\\' font-size=\\'36\\' fill=\\'%23333\\'>⊘</text><text x=\\'100\\' y=\\'100\\' text-anchor=\\'middle\\' font-family=\\'monospace\\' font-size=\\'11\\' fill=\\'%23333\\'>NO IMAGE</text></svg>';">
+            <img id="modal-set-img" src="${item.img_url}" alt="${item.name}">
         </div>        <div class="modal-meta">
             <div><span class="label">Set #: </span><span class="value">${setNumDisplay}</span></div>
             <div><span class="label">Year: </span><span class="value">${item.year}</span></div>
@@ -676,6 +678,8 @@ function showModal(item) {
             ${conditionSection}
         </div>
     `;
+    const img = document.getElementById('modal-set-img');
+    if (img) attachImgFallback(img);
     document.getElementById('set-modal').classList.add('active');
 }
 
@@ -877,37 +881,63 @@ function renderWantlist(data) {
     });
 }
 
-async function moveToCollection(item) {
-    // Build a simple condition picker into the confirm flow
-    const conditionOptions = CONDITIONS.map(c => `${c.value}`).join(' / ');
-    const conditionInput = prompt(
-        `Move "${item.name}" to your collection?\n\nSet condition (leave blank to skip):\n${conditionOptions}`,
-        ''
-    );
-    if (conditionInput === null) return; // User cancelled
+function moveToCollection(item) {
+    // Show a styled modal with condition picker instead of browser prompt()
+    document.getElementById('modal-content').innerHTML = `
+        <button class="modal-close" onclick="document.getElementById('set-modal').classList.remove('active')">✕</button>
+        <h2>→ Move to Collection</h2>
+        <div class="modal-img-wrap">
+            <img src="${item.img_url}" alt="${item.name}" id="move-modal-img">
+        </div>
+        <div style="color:#aaa;font-size:0.88em;margin-bottom:12px;line-height:1.6;">
+            <strong style="color:#fff;">${escapeHTML(item.name)}</strong><br>
+            <span style="color:#00ffff;">${escapeHTML(item.theme || '')} &nbsp;·&nbsp; ${item.year || ''}</span>
+        </div>
+        ${conditionSelectHTML('')}
+        <div style="display:flex;gap:8px;margin-top:12px;">
+            <button onclick="confirmMoveToCollection(${item.id})" style="flex:1;background:#00ff00;color:#000;padding:10px;font-family:'Courier New',monospace;font-weight:bold;border:none;cursor:pointer;">✓ MOVE TO COLLECTION</button>
+            <button onclick="document.getElementById('set-modal').classList.remove('active')" style="flex:1;background:none;border:1px solid #333;color:#888;padding:10px;font-family:'Courier New',monospace;cursor:pointer;">CANCEL</button>
+        </div>
+    `;
+    // Attach image fallback
+    const img = document.getElementById('move-modal-img');
+    if (img) attachImgFallback(img);
 
+    // Stash the item on the modal for the confirm handler to pick up
+    document.getElementById('set-modal').dataset.pendingMove = JSON.stringify(item);
+    document.getElementById('set-modal').classList.add('active');
+}
+
+async function confirmMoveToCollection(wantlistId) {
+    const modal = document.getElementById('set-modal');
+    const item = JSON.parse(modal.dataset.pendingMove || 'null');
+    if (!item) return;
+
+    const condition = document.getElementById('condition-select')?.value || null;
     const validConditions = CONDITIONS.map(c => c.value);
-    const condition = validConditions.includes(conditionInput.trim()) ? conditionInput.trim() : null;
+    const cleanCondition = validConditions.includes(condition) ? condition : null;
+
+    modal.classList.remove('active');
+    delete modal.dataset.pendingMove;
 
     const { data: existing } = await db.from('lego_collection').select('id').eq('set_num', item.set_num).limit(1);
     if (existing && existing.length > 0) {
-        if (!confirm(`"${item.name}" is already in your collection. Remove it from want list anyway?`)) return;
+        showToast(`"${item.name}" is already in your collection — removing from want list.`, 'warning');
     } else {
         const { error } = await db.from('lego_collection').insert([{
             set_num: item.set_num, name: item.name, img_url: item.img_url, year: item.year, theme: item.theme,
-            condition: condition
+            condition: cleanCondition
         }]);
         if (error) { showToast("Error saving to collection: " + error.message, 'error'); return; }
     }
 
-    const { error: deleteError } = await db.from('lego_wantlist').delete().eq('id', item.id);
+    const { error: deleteError } = await db.from('lego_wantlist').delete().eq('id', wantlistId);
     if (deleteError) {
         showToast("Moved to collection, but failed to remove from want list: " + deleteError.message, 'warning');
     } else {
         showToast(`"${item.name}" moved to collection!`, 'success');
     }
-    // Update cache in-place — no need to re-fetch all data from Supabase
-    wantlistCache = wantlistCache.filter(i => i.id !== item.id);
+    wantlistCache = wantlistCache.filter(i => i.id !== wantlistId);
     populateFilterDropdowns(wantlistCache);
     applyWantlistControls();
 }
@@ -1061,10 +1091,9 @@ async function confirmImport() {
 
             updateProgress(set_num);
 
-            // Always fetch from Rebrickable to get the authoritative img_url,
-            // and fill in any missing name/theme/year while we're at it
-            let img_url = null;
-            if (!name || !theme || !year || !row.img_url) {
+            // Only fetch from Rebrickable if data is actually missing
+            let img_url = row.img_url || null;
+            if (!name || !theme || !year || !img_url) {
                 const res = await fetch(`https://rebrickable.com/api/v3/lego/sets/${set_num}/`, {
                     headers: { 'Authorization': `key ${REBRICKABLE_API_KEY}` }
                 });
@@ -1073,10 +1102,10 @@ async function confirmImport() {
                 name    = name    || data.name;
                 year    = year    || data.year;
                 theme   = theme   || await fetchTheme(data.theme_id);
-                img_url = data.set_img_url || null;
+                img_url = img_url || data.set_img_url || null;
             }
-            // Fall back to constructed URL only if CSV provided all fields but no image
-            if (!img_url) img_url = row.img_url || `https://cdn.rebrickable.com/media/sets/${set_num}.jpg`;
+            // Final fallback: construct URL from set number
+            if (!img_url) img_url = `https://cdn.rebrickable.com/media/sets/${set_num}.jpg`;
 
             const validConditions = CONDITIONS.map(c => c.value);
             const cleanCondition = validConditions.includes(condition) ? condition : null;
