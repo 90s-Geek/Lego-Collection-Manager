@@ -6,6 +6,32 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let currentSet = null;
 
+// --- Collection/Wantlist presence cache (for search page indicators) ---
+// Loaded once on index.html to show "already in collection" badges on search results
+let collectionSetNums = new Set();
+let wantlistSetNums   = new Set();
+
+async function loadPresenceCache() {
+    const [colRes, wlRes] = await Promise.all([
+        db.from('lego_collection').select('set_num'),
+        db.from('lego_wantlist').select('set_num')
+    ]);
+    collectionSetNums = new Set((colRes.data || []).map(r => r.set_num));
+    wantlistSetNums   = new Set((wlRes.data  || []).map(r => r.set_num));
+}
+
+function presenceBadge(setNum) {
+    // Returns HTML badge(s) indicating if a set is already saved
+    const badges = [];
+    if (collectionSetNums.has(setNum)) {
+        badges.push(`<span class="presence-badge presence-badge--collection">✓ IN COLLECTION</span>`);
+    }
+    if (wantlistSetNums.has(setNum)) {
+        badges.push(`<span class="presence-badge presence-badge--wantlist">♥ IN WANT LIST</span>`);
+    }
+    return badges.join('');
+}
+
 // --- Toast Notifications ---
 // Replaces native alert() with non-blocking, auto-fading messages
 function showToast(message, type = 'success') {
@@ -60,12 +86,13 @@ function createToastContainer() {
     return el;
 }
 
-// --- Escape key closes any open modal ---
+// --- Escape key closes any open modal or lightbox ---
 document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
     // Don't close import modal if actively importing
     const importModal = document.getElementById('import-modal');
     if (importModal && importModal.dataset.importing) return;
+    closeLightbox();
     document.querySelectorAll('.modal-overlay.active').forEach(m => m.classList.remove('active'));
 });
 
@@ -226,6 +253,7 @@ window.onload = () => {
     // Check if the dashboard container exists (index.html)
     if (document.getElementById('last-added-container')) {
         loadLastAdded();
+        loadPresenceCache(); // Pre-load so search badges are ready
     }
     // Check if the full list exists (collection.html)
     if (document.getElementById('collection-list')) {
@@ -302,6 +330,7 @@ function renderNameSearchResults(results, themeMap, query, totalCount) {
             <div class="search-result-info">
                 <strong>${set.name}</strong>
                 <span class="search-result-meta">${set.set_num} &nbsp;|&nbsp; ${set.year} &nbsp;|&nbsp; ${themeMap[set.theme_id] || 'Unknown'}</span>
+                ${presenceBadge(set.set_num)}
             </div>
         </li>
     `).join('');
@@ -335,13 +364,26 @@ async function selectSearchResult(setNum, themeId) {
 }
 
 function renderSearchResult(set) {
+    const inCollection = collectionSetNums.has(set.set_num);
+    const inWantlist   = wantlistSetNums.has(set.set_num);
+
+    const statusBanner = (inCollection || inWantlist) ? `
+        <div class="search-status-banner">
+            ${inCollection ? `<span class="presence-badge presence-badge--collection">✓ ALREADY IN COLLECTION</span>` : ''}
+            ${inWantlist   ? `<span class="presence-badge presence-badge--wantlist">♥ ALREADY IN WANT LIST</span>`   : ''}
+        </div>` : '';
+
     document.getElementById('result-container').innerHTML = `
         <h2>${set.name}</h2>
         <div class="set-meta">
             <strong>Year:</strong> ${set.year} | <strong>Theme:</strong> ${set.theme_name} | 
             <strong>Set #:</strong> <a href="https://rebrickable.com/sets/${set.set_num}/" target="_blank" rel="noopener" style="color:#00ffff;text-decoration:none;" title="View on Rebrickable">${set.set_num} ↗</a>
         </div>
-        <img id="search-result-img" src="${set.set_img_url}" alt="${set.name}" style="max-width:250px; border:1px solid #0f0; margin-bottom: 10px;">
+        ${statusBanner}
+        <div class="search-img-wrap" onclick="openImageLightbox()" title="Click to view details">
+            <img id="search-result-img" src="${set.set_img_url}" alt="${set.name}" style="max-width:250px; border:1px solid #0f0; margin-bottom:4px; cursor:pointer;">
+            <div class="search-img-hint">🔍 click to enlarge</div>
+        </div>
         <p>Parts: ${set.num_parts}</p>
         ${conditionSelectHTML()}
         <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-top:10px;">
@@ -351,6 +393,94 @@ function renderSearchResult(set) {
     `;
     const img = document.getElementById('search-result-img');
     if (img) attachImgFallback(img);
+}
+
+// --- Image Lightbox ---
+async function openImageLightbox() {
+    if (!currentSet) return;
+
+    // Create or reuse lightbox overlay
+    let overlay = document.getElementById('lightbox-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'lightbox-overlay';
+        overlay.addEventListener('click', e => {
+            if (e.target === overlay) closeLightbox();
+        });
+        document.body.appendChild(overlay);
+    }
+
+    overlay.innerHTML = `
+        <div class="lightbox-box" id="lightbox-box">
+            <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+            <div class="lightbox-img-wrap">
+                <img src="${currentSet.set_img_url || ''}" alt="${currentSet.name}" id="lightbox-img">
+            </div>
+            <div class="lightbox-title">${escapeHTML(currentSet.name)}</div>
+            <div class="lightbox-meta-row">
+                <div class="lightbox-stat">
+                    <span class="lightbox-stat-val">${currentSet.num_parts ?? '—'}</span>
+                    <span class="lightbox-stat-label">PARTS</span>
+                </div>
+                <div class="lightbox-stat-divider"></div>
+                <div class="lightbox-stat">
+                    <span class="lightbox-stat-val" id="lightbox-minifig-count">…</span>
+                    <span class="lightbox-stat-label">MINIFIGS</span>
+                </div>
+                <div class="lightbox-stat-divider"></div>
+                <div class="lightbox-stat">
+                    <span class="lightbox-stat-val">${currentSet.year ?? '—'}</span>
+                    <span class="lightbox-stat-label">YEAR</span>
+                </div>
+            </div>
+            <div id="lightbox-minifigs" class="lightbox-minifigs"></div>
+            <a href="https://rebrickable.com/sets/${currentSet.set_num}/" target="_blank" rel="noopener" class="lightbox-rebrickable-link">VIEW ON REBRICKABLE ↗</a>
+        </div>
+    `;
+
+    const lbImg = document.getElementById('lightbox-img');
+    if (lbImg) attachImgFallback(lbImg);
+
+    overlay.classList.add('active');
+
+    // Fetch minifig data async while lightbox is already visible
+    fetchMinifigs(currentSet.set_num);
+}
+
+async function fetchMinifigs(setNum) {
+    const countEl = document.getElementById('lightbox-minifig-count');
+    const gridEl  = document.getElementById('lightbox-minifigs');
+    try {
+        const res = await fetch(`https://rebrickable.com/api/v3/lego/sets/${setNum}/minifigs/?page_size=50`, {
+            headers: { 'Authorization': `key ${REBRICKABLE_API_KEY}` }
+        });
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        const count = data.count ?? 0;
+
+        if (countEl) countEl.textContent = count || '0';
+
+        if (count > 0 && gridEl) {
+            gridEl.innerHTML = data.results.map(mf => `
+                <div class="lightbox-minifig">
+                    <img src="${mf.set_img_url || ''}" alt="${mf.set_name}" title="${mf.set_name}">
+                    <div class="lightbox-minifig-name">${escapeHTML(mf.set_name)}</div>
+                    ${mf.quantity > 1 ? `<div class="lightbox-minifig-qty">×${mf.quantity}</div>` : ''}
+                </div>
+            `).join('');
+            // Attach fallbacks
+            gridEl.querySelectorAll('img').forEach(attachImgFallback);
+        } else if (gridEl) {
+            gridEl.innerHTML = '';
+        }
+    } catch {
+        if (countEl) countEl.textContent = '—';
+    }
+}
+
+function closeLightbox() {
+    const overlay = document.getElementById('lightbox-overlay');
+    if (overlay) overlay.classList.remove('active');
 }
 
 async function saveCurrentSet() {
@@ -387,7 +517,9 @@ async function saveCurrentSet() {
     if (error) {
         showToast("Database Error: " + error.message, 'error');
     } else {
+        collectionSetNums.add(currentSet.set_num); // Update presence cache instantly
         showToast("Added to collection!", 'success');
+        renderSearchResult(currentSet); // Refresh to show badge
         loadLastAdded(); // Refresh dashboard after save
     }
 }
@@ -742,7 +874,11 @@ async function saveToWantList() {
     }]);
 
     if (error) { showToast("Database Error: " + error.message, 'error'); }
-    else { showToast("Added to want list!", 'success'); }
+    else {
+        wantlistSetNums.add(currentSet.set_num); // Update presence cache instantly
+        showToast("Added to want list!", 'success');
+        renderSearchResult(currentSet); // Refresh to show badge
+    }
 }
 
 let wantlistCache = [];
