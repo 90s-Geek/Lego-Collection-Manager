@@ -31,7 +31,7 @@ button:hover { background: #00cc00; }
 /* --- Logo --- */
 .logo {
     position: fixed;
-    top: 50px;
+    top: 20px;
     left: 50px;
     max-width: 120px;
     max-height: 120px;
@@ -382,7 +382,7 @@ button:hover { background: #00cc00; }
         max-width: 140px;
     }
     body {
-        margin: 20px 15px 40px 15px;
+        margin: 50px 15px 40px 15px;
         padding: 0;
     }
     .collection-item-info img {
