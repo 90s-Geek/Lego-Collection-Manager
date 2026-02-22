@@ -17,6 +17,17 @@ h1 {
     color: #00ff00;
 }
 
+/* --- Set images always get a white background (Rebrickable images are often transparent) --- */
+img[src*="rebrickable"],
+img[src*="cdn.rebrickable"],
+.collection-item-info img,
+.modal-box img,
+.last-added-card img,
+.search-result-item img,
+#result-container img {
+    background-color: #fff;
+}
+
 button {
     background: #00ff00;
     color: #000;
