@@ -50,14 +50,14 @@
             </select>
         </div>
         <div class="control-row">
-            <label>Search:</label>
-            <input type="text" id="filter-name" placeholder="Type to search by name..." oninput="debouncedFilter()">
-        </div>
-        <div class="control-row">
             <label>Condition:</label>
             <select id="filter-condition" onchange="applyControls()">
                 <option value="">All Conditions</option>
             </select>
+        </div>
+        <div class="control-row">
+            <label>Search:</label>
+            <input type="text" id="filter-name" placeholder="Type to search by name..." oninput="debouncedFilter()">
         </div>
         <button class="clear-filters-btn" onclick="clearFilters()">✕ CLEAR FILTERS</button>
     </div>
