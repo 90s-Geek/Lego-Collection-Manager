@@ -735,14 +735,15 @@ function renderCollection(data) {
         if (total === 0) {
             countEl.innerHTML = '';
         } else if (showing === total) {
-            countEl.innerHTML = `> <span>${total}</span> set${total !== 1 ? 's' : ''} in database`;
+            countEl.innerHTML = `> <span>${total}</span>&nbsp;set${total !== 1 ? 's' : ''} in database`;
         } else {
-            countEl.innerHTML = `> Showing <span>${showing}</span> of <span>${total}</span> sets`;
+            countEl.innerHTML = `> Showing&nbsp;<span>${showing}</span>&nbsp;of&nbsp;<span>${total}</span>&nbsp;sets`;
         }
     }
 
     list.innerHTML = '';
     list.classList.remove('grid-view');
+
     if (currentView === 'grid') list.classList.add('grid-view');
     if (!data.length) {
         list.innerHTML = '<li style="color:#666; padding:10px;">No sets match your filters.</li>';
@@ -957,9 +958,9 @@ function renderWantlist(data) {
         if (total === 0) {
             countEl.innerHTML = '';
         } else if (showing === total) {
-            countEl.innerHTML = `> <span>${total}</span> set${total !== 1 ? 's' : ''} on want list`;
+            countEl.innerHTML = `> <span>${total}</span>&nbsp;set${total !== 1 ? 's' : ''} on want list`;
         } else {
-            countEl.innerHTML = `> Showing <span>${showing}</span> of <span>${total}</span> sets`;
+            countEl.innerHTML = `> Showing&nbsp;<span>${showing}</span>&nbsp;of&nbsp;<span>${total}</span>&nbsp;sets`;
         }
     }
 
