@@ -601,9 +601,9 @@ function renderCollection(data) {
         if (total === 0) {
             countEl.innerHTML = '';
         } else if (showing === total) {
-            countEl.innerHTML = `> <span>${total}</span> set${total !== 1 ? 's' : ''} in database`;
+            countEl.innerHTML = `> <span>${total}</span> set${total !== 1 ? 's' : ''} in database <span class="count-cursor">█</span>`;
         } else {
-            countEl.innerHTML = `> Showing <span>${showing}</span> of <span>${total}</span> sets`;
+            countEl.innerHTML = `> Showing <span>${showing}</span> of <span>${total}</span> sets <span class="count-cursor">█</span>`;
         }
     }
 
@@ -817,9 +817,9 @@ function renderWantlist(data) {
         if (total === 0) {
             countEl.innerHTML = '';
         } else if (showing === total) {
-            countEl.innerHTML = `> <span>${total}</span> set${total !== 1 ? 's' : ''} on want list`;
+            countEl.innerHTML = `> <span>${total}</span> set${total !== 1 ? 's' : ''} on want list <span class="count-cursor">█</span>`;
         } else {
-            countEl.innerHTML = `> Showing <span>${showing}</span> of <span>${total}</span> sets`;
+            countEl.innerHTML = `> Showing <span>${showing}</span> of <span>${total}</span> sets <span class="count-cursor">█</span>`;
         }
     }
 
