@@ -101,20 +101,6 @@ function conditionBadge(condition) {
     return `<span style="font-size:0.7em;border:1px solid ${c.color};color:${c.color};padding:1px 6px;margin-left:6px;vertical-align:middle;">${c.label}</span>`;
 }
 
-// --- Decade / Era Badge ---
-function decadeBadge(year) {
-    if (!year) return '';
-    const y = parseInt(year);
-    let label, color;
-    if (y < 1980)      { label = `'${String(y).slice(2,3)}0s`; color = '#888888'; }
-    else if (y < 1990) { label = "80s"; color = '#ff6ec7'; }
-    else if (y < 2000) { label = "90s"; color = '#00ff00'; }
-    else if (y < 2010) { label = "00s"; color = '#00ffff'; }
-    else if (y < 2020) { label = "10s"; color = '#ffaa00'; }
-    else               { label = "20s"; color = '#ff00ff'; }
-    return `<span class="decade-badge" style="font-size:0.65em;border:1px solid ${color};color:${color};padding:1px 5px;margin-left:4px;vertical-align:middle;opacity:0.75;">${label}</span>`;
-}
-
 // --- Image Fallback ---
 // Attaches onerror handler to replace broken LEGO set images with a placeholder
 function attachImgFallback(imgEl) {
@@ -322,7 +308,7 @@ function renderSearchResult(set) {
     document.getElementById('result-container').innerHTML = `
         <h2>${set.name}</h2>
         <div class="set-meta">
-            <strong>Year:</strong> ${set.year}${decadeBadge(set.year)} | <strong>Theme:</strong> ${set.theme_name} | 
+            <strong>Year:</strong> ${set.year} | <strong>Theme:</strong> ${set.theme_name} | 
             <strong>Set #:</strong> <a href="https://rebrickable.com/sets/${set.set_num}/" target="_blank" rel="noopener" style="color:#00ffff;text-decoration:none;" title="View on Rebrickable">${set.set_num} ↗</a>
         </div>
         <img src="${set.set_img_url}" alt="${set.name}" style="max-width:250px; border:1px solid #0f0; margin-bottom: 10px;" onerror="this.onerror=null;this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'250\\' height=\\'200\\'><rect width=\\'250\\' height=\\'200\\' fill=\\'%23111\\'/><text x=\\'125\\' y=\\'90\\' text-anchor=\\'middle\\' font-family=\\'monospace\\' font-size=\\'40\\' fill=\\'%23333\\'>⊘</text><text x=\\'125\\' y=\\'120\\' text-anchor=\\'middle\\' font-family=\\'monospace\\' font-size=\\'12\\' fill=\\'%23333\\'>NO IMAGE</text></svg>';">
@@ -616,7 +602,7 @@ function renderCollection(data) {
 
         const textDiv = document.createElement('div');
         textDiv.innerHTML = `
-            <strong>${item.name}</strong> (${item.year})${conditionBadge(item.condition)}${decadeBadge(item.year)}<br>
+            <strong>${item.name}</strong> (${item.year})${conditionBadge(item.condition)}<br>
             <small style="color:#00ffff;">Theme: ${item.theme}</small>`;
 
         infoDiv.appendChild(img);
@@ -653,7 +639,7 @@ function showModal(item) {
         <img src="${item.img_url}" alt="${item.name}" onerror="this.onerror=null;this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'200\\' height=\\'160\\'><rect width=\\'200\\' height=\\'160\\' fill=\\'%23111\\'/><text x=\\'100\\' y=\\'72\\' text-anchor=\\'middle\\' font-family=\\'monospace\\' font-size=\\'36\\' fill=\\'%23333\\'>⊘</text><text x=\\'100\\' y=\\'100\\' text-anchor=\\'middle\\' font-family=\\'monospace\\' font-size=\\'11\\' fill=\\'%23333\\'>NO IMAGE</text></svg>';">
         <div class="modal-meta">
             <div><span class="label">Set #: </span><span class="value">${setNumDisplay}</span></div>
-            <div><span class="label">Year: </span><span class="value">${item.year}</span>${decadeBadge(item.year)}</div>
+            <div><span class="label">Year: </span><span class="value">${item.year}</span></div>
             <div><span class="label">Theme: </span><span class="value">${item.theme}</span></div>
             ${!onWantlist && item.condition ? `<div><span class="label">Condition: </span>${conditionBadge(item.condition)}</div>` : ''}
             ${conditionSection}
@@ -831,7 +817,7 @@ function renderWantlist(data) {
 
         const textDiv = document.createElement('div');
         textDiv.innerHTML = `
-            <strong>${item.name}</strong> (${item.year})${decadeBadge(item.year)}<br>
+            <strong>${item.name}</strong> (${item.year})<br>
             <small style="color:#00ffff;">Theme: ${item.theme}</small>`;
 
         infoDiv.appendChild(img);
