@@ -253,6 +253,15 @@ button:hover { background: #00cc00; }
     transition: opacity 0.1s;
 }
 
+/* --- Fade-in animation for collection items --- */
+@keyframes itemFadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.collection-item-fadein {
+    animation: itemFadeIn 0.25s ease both;
+}
+
 /* --- List View --- */
 #collection-list {
     list-style: none;

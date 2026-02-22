@@ -6,6 +6,69 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let currentSet = null;
 
+// --- Toast Notifications ---
+// Replaces native alert() with non-blocking, auto-fading messages
+function showToast(message, type = 'success') {
+    // type: 'success' | 'error' | 'warning' | 'info'
+    const colors = {
+        success: { bg: '#001a00', border: '#00ff00', text: '#00ff00' },
+        error:   { bg: '#1a0000', border: '#ff4444', text: '#ff4444' },
+        warning: { bg: '#1a0e00', border: '#ffaa00', text: '#ffaa00' },
+        info:    { bg: '#00111a', border: '#00ffff', text: '#00ffff' },
+    };
+    const c = colors[type] || colors.info;
+
+    const container = document.getElementById('toast-container') || createToastContainer();
+
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        background:${c.bg};border:1px solid ${c.border};color:${c.text};
+        padding:10px 16px;font-family:'Courier New',monospace;font-size:0.82em;
+        box-shadow:0 0 12px ${c.border}44;
+        opacity:0;transform:translateX(20px);
+        transition:opacity 0.25s,transform 0.25s;
+        pointer-events:none;line-height:1.4;max-width:280px;word-break:break-word;
+    `;
+    toast.textContent = message;
+    container.appendChild(toast);
+
+    // Animate in
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(0)';
+        });
+    });
+
+    // Animate out after delay
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(20px)';
+        setTimeout(() => toast.remove(), 300);
+    }, 3200);
+}
+
+function createToastContainer() {
+    const el = document.createElement('div');
+    el.id = 'toast-container';
+    el.style.cssText = `
+        position:fixed;bottom:24px;right:24px;
+        display:flex;flex-direction:column;gap:8px;
+        z-index:9999;pointer-events:none;
+    `;
+    document.body.appendChild(el);
+    return el;
+}
+
+// --- Escape key closes any open modal ---
+document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    // Don't close import modal if actively importing
+    const importModal = document.getElementById('import-modal');
+    if (importModal && importModal.dataset.importing) return;
+    document.querySelectorAll('.modal-overlay.active').forEach(m => m.classList.remove('active'));
+});
+
 // --- Quick Links (single source of truth for all pages) ---
 const QUICK_LINKS = [
     { label: 'eBay',       url: 'https://www.ebay.com/sch/i.html?_nkw=lego' },
@@ -38,6 +101,32 @@ function conditionBadge(condition) {
     return `<span style="font-size:0.7em;border:1px solid ${c.color};color:${c.color};padding:1px 6px;margin-left:6px;vertical-align:middle;">${c.label}</span>`;
 }
 
+// --- Decade / Era Badge ---
+function decadeBadge(year) {
+    if (!year) return '';
+    const y = parseInt(year);
+    let label, color;
+    if (y < 1980)      { label = `'${String(y).slice(2,3)}0s`; color = '#888888'; }
+    else if (y < 1990) { label = "80s"; color = '#ff6ec7'; }
+    else if (y < 2000) { label = "90s"; color = '#00ff00'; }
+    else if (y < 2010) { label = "00s"; color = '#00ffff'; }
+    else if (y < 2020) { label = "10s"; color = '#ffaa00'; }
+    else               { label = "20s"; color = '#ff00ff'; }
+    return `<span class="decade-badge" style="font-size:0.65em;border:1px solid ${color};color:${color};padding:1px 5px;margin-left:4px;vertical-align:middle;opacity:0.75;">${label}</span>`;
+}
+
+// --- Image Fallback ---
+// Attaches onerror handler to replace broken LEGO set images with a placeholder
+function attachImgFallback(imgEl) {
+    imgEl.onerror = function() {
+        this.onerror = null;
+        this.style.background = '#111';
+        this.style.border = '1px solid #333';
+        // Inline SVG placeholder — no external dependency needed
+        this.src = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='80' viewBox='0 0 100 80'><rect width='100' height='80' fill='%23111'/><text x='50' y='36' text-anchor='middle' font-family='monospace' font-size='22' fill='%23333'>⊘</text><text x='50' y='56' text-anchor='middle' font-family='monospace' font-size='9' fill='%23333'>NO IMAGE</text></svg>`;
+    };
+}
+
 function conditionSelectHTML(selected = '') {
     return `<select id="condition-select" style="background:#000;color:#00ff00;border:1px solid #00ff00;padding:6px 10px;font-family:'Courier New',monospace;font-size:0.85em;margin-top:10px;width:100%;">
         <option value="">— Set Condition —</option>
@@ -54,6 +143,36 @@ function escapeHTML(str) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+}
+
+// --- Persistent Filter State ---
+// Saves/restores sort+filter selections across page reloads via localStorage
+function filterStateKey() {
+    return `lego_filters_${document.body.dataset.page || 'collection'}`;
+}
+
+function saveFilterState() {
+    const state = {
+        sort:      document.getElementById('sort-select')?.value || '',
+        theme:     document.getElementById('filter-theme')?.value || '',
+        year:      document.getElementById('filter-year')?.value || '',
+        name:      document.getElementById('filter-name')?.value || '',
+        condition: document.getElementById('filter-condition')?.value || '',
+    };
+    try { localStorage.setItem(filterStateKey(), JSON.stringify(state)); } catch {}
+}
+
+function restoreFilterState() {
+    try {
+        const raw = localStorage.getItem(filterStateKey());
+        if (!raw) return;
+        const state = JSON.parse(raw);
+        if (state.sort)      { const el = document.getElementById('sort-select');      if (el) el.value = state.sort; }
+        if (state.theme)     { const el = document.getElementById('filter-theme');     if (el) el.value = state.theme; }
+        if (state.year)      { const el = document.getElementById('filter-year');      if (el) el.value = state.year; }
+        if (state.name)      { const el = document.getElementById('filter-name');      if (el) el.value = state.name; }
+        if (state.condition) { const el = document.getElementById('filter-condition'); if (el) el.value = state.condition; }
+    } catch {}
 }
 
 // Avoids redundant Rebrickable API calls for themes already fetched this session
@@ -104,7 +223,7 @@ window.onload = () => {
 
 async function searchLego() {
     const input = document.getElementById('set-input').value.trim();
-    if (!input) return alert("Enter a set number or name!");
+    if (!input) return showToast("Enter a set number or name!", 'warning');
     const container = document.getElementById('result-container');
     container.style.display = 'block';
     container.innerHTML = '<p>Accessing Rebrickable...</p>';
@@ -203,9 +322,10 @@ function renderSearchResult(set) {
     document.getElementById('result-container').innerHTML = `
         <h2>${set.name}</h2>
         <div class="set-meta">
-            <strong>Year:</strong> ${set.year} | <strong>Theme:</strong> ${set.theme_name} | <strong>Set #:</strong> ${set.set_num}
+            <strong>Year:</strong> ${set.year}${decadeBadge(set.year)} | <strong>Theme:</strong> ${set.theme_name} | 
+            <strong>Set #:</strong> <a href="https://rebrickable.com/sets/${set.set_num}/" target="_blank" rel="noopener" style="color:#00ffff;text-decoration:none;" title="View on Rebrickable">${set.set_num} ↗</a>
         </div>
-        <img src="${set.set_img_url}" alt="${set.name}" style="max-width:250px; border:1px solid #0f0; margin-bottom: 10px;">
+        <img src="${set.set_img_url}" alt="${set.name}" style="max-width:250px; border:1px solid #0f0; margin-bottom: 10px;" onerror="this.onerror=null;this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'250\\' height=\\'200\\'><rect width=\\'250\\' height=\\'200\\' fill=\\'%23111\\'/><text x=\\'125\\' y=\\'90\\' text-anchor=\\'middle\\' font-family=\\'monospace\\' font-size=\\'40\\' fill=\\'%23333\\'>⊘</text><text x=\\'125\\' y=\\'120\\' text-anchor=\\'middle\\' font-family=\\'monospace\\' font-size=\\'12\\' fill=\\'%23333\\'>NO IMAGE</text></svg>';">
         <p>Parts: ${set.num_parts}</p>
         ${conditionSelectHTML()}
         <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-top:10px;">
@@ -226,12 +346,12 @@ async function saveCurrentSet() {
         .limit(1);
 
     if (checkError) {
-        alert("Database Error: " + checkError.message);
+        showToast("Database Error: " + checkError.message, 'error');
         return;
     }
 
     if (existing && existing.length > 0) {
-        alert(`"${currentSet.name}" is already in your collection!`);
+        showToast(`"${currentSet.name}" is already in your collection!`, 'warning');
         return;
     }
 
@@ -247,9 +367,9 @@ async function saveCurrentSet() {
     }]);
 
     if (error) {
-        alert("Database Error: " + error.message);
+        showToast("Database Error: " + error.message, 'error');
     } else {
-        alert("Saved successfully!");
+        showToast("Added to collection!", 'success');
         loadLastAdded(); // Refresh dashboard after save
     }
 }
@@ -344,6 +464,7 @@ async function loadCollection() {
 
     collectionCache = data || [];
     populateFilterDropdowns(collectionCache);
+    restoreFilterState();
     applyControls();
 }
 
@@ -407,7 +528,6 @@ function applyControls() {
     const filterYear      = document.getElementById('filter-year')?.value || '';
     const filterName      = (document.getElementById('filter-name')?.value || '').toLowerCase().trim();
     const filterCondition = document.getElementById('filter-condition')?.value || '';
-
     // Filter
     let results = collectionCache.filter(item => {
         if (filterTheme     && (item.theme || '').toLowerCase() !== filterTheme) return false;
@@ -442,6 +562,7 @@ function clearFilters() {
     if (yearEl)      yearEl.value      = '';
     if (nameEl)      nameEl.value      = '';
     if (conditionEl) conditionEl.value = '';
+    try { localStorage.removeItem(filterStateKey()); } catch {}
     if (document.body.dataset.page === 'wantlist') {
         applyWantlistControls();
     } else {
@@ -452,6 +573,9 @@ function clearFilters() {
 function renderCollection(data) {
     const list = document.getElementById('collection-list');
     list.classList.remove('filtering');
+
+    // Persist filter state after each render
+    saveFilterState();
 
     // Update count
     const countEl = document.getElementById('collection-count');
@@ -475,18 +599,28 @@ function renderCollection(data) {
         return;
     }
 
-    data.forEach(item => {
+    data.forEach((item, idx) => {
         const li = document.createElement('li');
-        li.className = "collection-item";
+        li.className = "collection-item collection-item-fadein";
+        li.style.animationDelay = `${Math.min(idx * 30, 400)}ms`;
 
         const infoDiv = document.createElement('div');
         infoDiv.className = "collection-item-info";
-        infoDiv.innerHTML = `
-            <img src="${item.img_url}" alt="${item.name}" width="${currentView === 'grid' ? '100' : '50'}" style="margin-right:${currentView === 'grid' ? '0' : '10px'};border:1px solid #0f0;">
-            <div>
-                <strong>${item.name}</strong> (${item.year})${conditionBadge(item.condition)}<br>
-                <small style="color:#00ffff;">Theme: ${item.theme}</small>
-            </div>`;
+
+        const img = document.createElement('img');
+        img.src = item.img_url;
+        img.alt = item.name;
+        img.width = currentView === 'grid' ? 100 : 50;
+        img.style.cssText = `margin-right:${currentView === 'grid' ? '0' : '10px'};border:1px solid #0f0;`;
+        attachImgFallback(img);
+
+        const textDiv = document.createElement('div');
+        textDiv.innerHTML = `
+            <strong>${item.name}</strong> (${item.year})${conditionBadge(item.condition)}${decadeBadge(item.year)}<br>
+            <small style="color:#00ffff;">Theme: ${item.theme}</small>`;
+
+        infoDiv.appendChild(img);
+        infoDiv.appendChild(textDiv);
         infoDiv.addEventListener('click', () => showModal(item));
 
         const removeBtn = document.createElement('button');
@@ -509,13 +643,17 @@ function showModal(item) {
             <button onclick="updateCondition(${item.id})" style="margin-top:8px;width:100%;background:#00ff00;color:#000;border:none;padding:7px;font-family:'Courier New',monospace;font-weight:bold;cursor:pointer;">UPDATE CONDITION</button>
         </div>`;
 
+    const setNumDisplay = item.set_num
+        ? `<a href="https://rebrickable.com/sets/${item.set_num}/" target="_blank" rel="noopener" style="color:#00ffff;text-decoration:none;" title="View on Rebrickable">${item.set_num} ↗</a>`
+        : 'N/A';
+
     document.getElementById('modal-content').innerHTML = `
         <button class="modal-close" onclick="document.getElementById('set-modal').classList.remove('active')">✕</button>
         <h2>${item.name}</h2>
-        <img src="${item.img_url}" alt="${item.name}">
+        <img src="${item.img_url}" alt="${item.name}" onerror="this.onerror=null;this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'200\\' height=\\'160\\'><rect width=\\'200\\' height=\\'160\\' fill=\\'%23111\\'/><text x=\\'100\\' y=\\'72\\' text-anchor=\\'middle\\' font-family=\\'monospace\\' font-size=\\'36\\' fill=\\'%23333\\'>⊘</text><text x=\\'100\\' y=\\'100\\' text-anchor=\\'middle\\' font-family=\\'monospace\\' font-size=\\'11\\' fill=\\'%23333\\'>NO IMAGE</text></svg>';">
         <div class="modal-meta">
-            <div><span class="label">Set #: </span><span class="value">${item.set_num || 'N/A'}</span></div>
-            <div><span class="label">Year: </span><span class="value">${item.year}</span></div>
+            <div><span class="label">Set #: </span><span class="value">${setNumDisplay}</span></div>
+            <div><span class="label">Year: </span><span class="value">${item.year}</span>${decadeBadge(item.year)}</div>
             <div><span class="label">Theme: </span><span class="value">${item.theme}</span></div>
             ${!onWantlist && item.condition ? `<div><span class="label">Condition: </span>${conditionBadge(item.condition)}</div>` : ''}
             ${conditionSection}
@@ -528,7 +666,7 @@ async function updateCondition(id) {
     const condition = document.getElementById('condition-select')?.value || null;
     const { error } = await db.from('lego_collection').update({ condition }).eq('id', id);
     if (error) {
-        alert("Error updating condition: " + error.message);
+        showToast("Error updating condition: " + error.message, 'error');
         return;
     }
     // Update cache in-place
@@ -550,8 +688,9 @@ async function deleteSet(id) {
     if (!confirm("Remove this set from your collection?")) return;
     const { error } = await db.from('lego_collection').delete().eq('id', id);
     if (error) {
-        alert("Error removing set: " + error.message);
+        showToast("Error removing set: " + error.message, 'error');
     } else {
+        showToast("Set removed from collection.", 'info');
         // Update cache in-place — no need to re-fetch all data from Supabase
         collectionCache = collectionCache.filter(i => i.id !== id);
         populateFilterDropdowns(collectionCache);
@@ -570,8 +709,8 @@ async function saveToWantList() {
         .eq('set_num', currentSet.set_num)
         .limit(1);
 
-    if (checkError) { alert("Database Error: " + checkError.message); return; }
-    if (existing && existing.length > 0) { alert(`"${currentSet.name}" is already on your want list!`); return; }
+    if (checkError) { showToast("Database Error: " + checkError.message, 'error'); return; }
+    if (existing && existing.length > 0) { showToast(`"${currentSet.name}" is already on your want list!`, 'warning'); return; }
 
     const { error } = await db.from('lego_wantlist').insert([{
         set_num: currentSet.set_num,
@@ -581,8 +720,8 @@ async function saveToWantList() {
         theme: currentSet.theme_name
     }]);
 
-    if (error) { alert("Database Error: " + error.message); }
-    else { alert("Added to want list!"); }
+    if (error) { showToast("Database Error: " + error.message, 'error'); }
+    else { showToast("Added to want list!", 'success'); }
 }
 
 let wantlistCache = [];
@@ -611,6 +750,7 @@ async function loadWantlist() {
 
     wantlistCache = data || [];
     populateFilterDropdowns(wantlistCache);
+    restoreFilterState();
     applyWantlistControls();
 }
 
@@ -650,6 +790,9 @@ function renderWantlist(data) {
     const list = document.getElementById('collection-list');
     list.classList.remove('filtering');
 
+    // Persist filter state after each render
+    saveFilterState();
+
     const countEl = document.getElementById('collection-count');
     if (countEl) {
         const total = wantlistCache.length;
@@ -671,18 +814,28 @@ function renderWantlist(data) {
         return;
     }
 
-    data.forEach(item => {
+    data.forEach((item, idx) => {
         const li = document.createElement('li');
-        li.className = "collection-item";
+        li.className = "collection-item collection-item-fadein";
+        li.style.animationDelay = `${Math.min(idx * 30, 400)}ms`;
 
         const infoDiv = document.createElement('div');
         infoDiv.className = "collection-item-info";
-        infoDiv.innerHTML = `
-            <img src="${item.img_url}" alt="${item.name}" width="${currentView === 'grid' ? '100' : '50'}" style="margin-right:${currentView === 'grid' ? '0' : '10px'};border:1px solid #ff00ff;">
-            <div>
-                <strong>${item.name}</strong> (${item.year})<br>
-                <small style="color:#00ffff;">Theme: ${item.theme}</small>
-            </div>`;
+
+        const img = document.createElement('img');
+        img.src = item.img_url;
+        img.alt = item.name;
+        img.width = currentView === 'grid' ? 100 : 50;
+        img.style.cssText = `margin-right:${currentView === 'grid' ? '0' : '10px'};border:1px solid #ff00ff;`;
+        attachImgFallback(img);
+
+        const textDiv = document.createElement('div');
+        textDiv.innerHTML = `
+            <strong>${item.name}</strong> (${item.year})${decadeBadge(item.year)}<br>
+            <small style="color:#00ffff;">Theme: ${item.theme}</small>`;
+
+        infoDiv.appendChild(img);
+        infoDiv.appendChild(textDiv);
         infoDiv.addEventListener('click', () => showModal(item));
 
         const btnGroup = document.createElement('div');
@@ -727,12 +880,14 @@ async function moveToCollection(item) {
             set_num: item.set_num, name: item.name, img_url: item.img_url, year: item.year, theme: item.theme,
             condition: condition
         }]);
-        if (error) { alert("Error saving to collection: " + error.message); return; }
+        if (error) { showToast("Error saving to collection: " + error.message, 'error'); return; }
     }
 
     const { error: deleteError } = await db.from('lego_wantlist').delete().eq('id', item.id);
     if (deleteError) {
-        alert("Moved to collection, but failed to remove from want list: " + deleteError.message);
+        showToast("Moved to collection, but failed to remove from want list: " + deleteError.message, 'warning');
+    } else {
+        showToast(`"${item.name}" moved to collection!`, 'success');
     }
     // Update cache in-place — no need to re-fetch all data from Supabase
     wantlistCache = wantlistCache.filter(i => i.id !== item.id);
@@ -744,8 +899,9 @@ async function deleteFromWantlist(id) {
     if (!confirm("Remove this set from your want list?")) return;
     const { error } = await db.from('lego_wantlist').delete().eq('id', id);
     if (error) {
-        alert("Error removing set: " + error.message);
+        showToast("Error removing set: " + error.message, 'error');
     } else {
+        showToast("Set removed from want list.", 'info');
         // Update cache in-place — no need to re-fetch all data from Supabase
         wantlistCache = wantlistCache.filter(i => i.id !== id);
         populateFilterDropdowns(wantlistCache);
@@ -950,7 +1106,7 @@ async function confirmImport() {
 
 function exportWantlist() {
     // Use in-memory cache — no need for a redundant round-trip to Supabase
-    if (!wantlistCache.length) return alert("No data to export.");
+    if (!wantlistCache.length) return showToast("No data to export.", 'warning');
     const sorted = [...wantlistCache].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     const headers = ['set_num', 'name', 'theme', 'year', 'img_url'];
     const rows = sorted.map(item => headers.map(h => `"${(item[h] || '').toString().replace(/"/g, '""')}"`).join(','));
@@ -966,7 +1122,7 @@ function exportWantlist() {
 
 function exportCollection() {
     // Use in-memory cache — no need for a redundant round-trip to Supabase
-    if (!collectionCache.length) return alert("No data to export.");
+    if (!collectionCache.length) return showToast("No data to export.", 'warning');
     const sorted = [...collectionCache].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     const headers = ['set_num', 'name', 'theme', 'year', 'condition', 'img_url'];
     const rows = sorted.map(item => headers.map(h => `"${(item[h] || '').toString().replace(/"/g, '""')}"`).join(','));
