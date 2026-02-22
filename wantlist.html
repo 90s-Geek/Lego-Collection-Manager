@@ -7,7 +7,7 @@
     <link rel="icon" type="image/webp" href="images/90s_Geek_logo.webp">
     <title>My LEGO Want List</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="styles.css?v=6">
+    <link rel="stylesheet" href="styles.css?v=5">
     <style>
         /* --- Want list amber colour overrides --- */
         h1 { color: #ffaa00; }
@@ -33,20 +33,20 @@
         .collection-item-info:hover { background: #221500; }
         #collection-list.grid-view .collection-item-info img { border-color: #ff00ff; }
 
-        .modal-box { border-top-color: #ffaa00; box-shadow: 0 0 40px rgba(0,0,0,0.9), 0 0 18px rgba(255,170,0,0.07); }
-        .modal-box h2 { color: #ffaa00; text-shadow: 0 0 12px rgba(255,170,0,0.25); }
-        .modal-img-wrap { border-color: #2a1a00; }
-        .modal-meta { border-top-color: #2a1a00; }
+        .modal-box { border-color: #ffaa00; box-shadow: 0 0 30px rgba(255, 170, 0, 0.2); }
+        .modal-box h2 { color: #ffaa00; }
+        .modal-box img { border-color: #ffaa00; }
+        .modal-meta { border-top-color: #3a2200; }
         .modal-meta .value { color: #ffaa00; }
     </style>
 </head>
 <body data-page="wantlist">
-    <div class="sidebar-panel"></div>
     <a href="index.html"><img src="images/90s_Geek_logo.webp" alt="90s Geek Logo" class="logo"></a>
 
     <div class="nav">
         <a href="index.html">← SEARCH</a>
         <a href="collection.html">COLLECTION →</a>
+        <a href="news.html">NEWS →</a>
     </div>
 
     <h1>♥ Want List</h1>
@@ -54,11 +54,7 @@
     <button class="export-btn" onclick="exportWantlist()">DOWNLOAD CSV (EXCEL)</button>
 
     <div class="controls-panel">
-        <div class="controls-panel-title" id="controls-toggle" onclick="toggleControls()" role="button" aria-expanded="false">
-            <span>> SORT &amp; FILTER</span>
-            <span class="controls-panel-toggle">▼</span>
-        </div>
-        <div class="controls-panel-body" id="controls-body">
+        <div class="controls-panel-title">> SORT &amp; FILTER</div>
         <div class="control-row">
             <label>Sort By:</label>
             <select id="sort-select" onchange="applyWantlistControls()">
@@ -88,7 +84,6 @@
             <input type="text" id="filter-name" placeholder="Type to search by name..." oninput="debouncedFilter()">
         </div>
         <button class="clear-filters-btn" onclick="clearFilters()">✕ CLEAR FILTERS</button>
-        </div><!-- /controls-panel-body -->
     </div>
 
     <div class="collection-meta-row">
@@ -111,6 +106,6 @@
 
     <nav class="quick-links"></nav>
 
-    <script src="script.js?v=6"></script>
+    <script src="script.js?v=5"></script>
 </body>
 </html>

@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="90s Geek LEGO Collection Manager — latest LEGO news from top blogs.">
+    <link rel="icon" type="image/webp" href="images/90s_Geek_logo.webp">
+    <title>LEGO News Feed</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="styles.css?v=5">
+    <style>
+        /* ── News page colour: electric blue accent ── */
+        h1 { color: #00aaff; text-shadow: 0 0 18px rgba(0,170,255,0.35); }
+
+        /* ── Source filter bar ── */
+        .source-filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 18px;
+        }
+        .source-btn {
+            background: #000;
+            color: #444;
+            border: 1px solid #222;
+            padding: 5px 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.72em;
+            font-weight: bold;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .source-btn:hover {
+            border-color: #00aaff;
+            color: #00aaff;
+            box-shadow: none;
+            background: #000d1a;
+        }
+        .source-btn.active {
+            background: #000d1a;
+            border-color: #00aaff;
+            color: #00aaff;
+            box-shadow: 0 0 8px rgba(0,170,255,0.2);
+        }
+        .source-btn[data-source="all"].active {
+            border-color: #00ff00;
+            color: #00ff00;
+            background: #001800;
+            box-shadow: 0 0 8px rgba(0,255,0,0.2);
+        }
+
+        /* ── News grid ── */
+        #news-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+            gap: 12px;
+            margin-top: 5px;
+        }
+
+        /* ── Individual article card ── */
+        .news-card {
+            background: #0d0d0d;
+            border: 1px solid #1e1e1e;
+            border-top: 3px solid #00aaff;
+            padding: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transition: border-color 0.15s, background 0.15s;
+            animation: cardIn 0.25s ease both;
+        }
+        .news-card:hover {
+            background: #111;
+            border-color: #2a2a2a;
+            border-top-color: #00ffff;
+        }
+        @keyframes cardIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Thumbnail */
+        .news-card-img {
+            width: 100%;
+            height: 160px;
+            object-fit: cover;
+            display: block;
+            background: #0a0a0a;
+            border-bottom: 1px solid #1e1e1e;
+        }
+        .news-card-no-img {
+            width: 100%;
+            height: 80px;
+            background: #0a0a0a;
+            border-bottom: 1px solid #1e1e1e;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2em;
+            color: #1e1e1e;
+        }
+
+        /* Card body */
+        .news-card-body {
+            padding: 12px 14px 14px;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+        }
+
+        /* Source tag */
+        .news-source-tag {
+            font-size: 0.62em;
+            font-weight: bold;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+            padding: 2px 0;
+        }
+
+        /* Article title */
+        .news-card-title {
+            color: #ddd;
+            font-size: 0.88em;
+            line-height: 1.45;
+            margin-bottom: 8px;
+            font-weight: bold;
+            flex: 1;
+        }
+        .news-card a {
+            text-decoration: none;
+            color: inherit;
+        }
+        .news-card a:hover .news-card-title {
+            color: #00ffff;
+        }
+
+        /* Excerpt */
+        .news-card-excerpt {
+            font-size: 0.72em;
+            color: #555;
+            line-height: 1.5;
+            margin-bottom: 10px;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* Footer: date + read link */
+        .news-card-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-top: auto;
+            padding-top: 8px;
+            border-top: 1px solid #161616;
+        }
+        .news-card-date {
+            font-size: 0.65em;
+            color: #383838;
+        }
+        .news-card-link {
+            font-size: 0.68em;
+            font-weight: bold;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: #00aaff;
+            text-decoration: none;
+            border: 1px solid #001a33;
+            padding: 3px 8px;
+            transition: all 0.12s;
+        }
+        .news-card-link:hover {
+            background: #001a33;
+            color: #00ffff;
+            border-color: #00ffff;
+        }
+
+        /* ── Status / loading states ── */
+        .news-status {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 30px;
+            color: #444;
+            font-size: 0.85em;
+        }
+        .news-status.loading { color: #00aaff; }
+        .news-status.error   { color: #ff4444; }
+
+        /* ── Feed source error badge ── */
+        .feed-error-badge {
+            font-size: 0.62em;
+            color: #ff4444;
+            border: 1px solid #331111;
+            padding: 1px 5px;
+            margin-left: 6px;
+            vertical-align: middle;
+        }
+
+        /* ── Meta bar (count + last updated) ── */
+        .news-meta-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .news-count {
+            font-size: 0.75em;
+            color: #555;
+            background: #0a0a0a;
+            border: 1px solid #1e1e1e;
+            padding: 4px 10px;
+        }
+        .news-count span { color: #00aaff; }
+        .news-refresh-btn {
+            background: none;
+            border: 1px solid #1e1e1e;
+            color: #333;
+            padding: 4px 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.72em;
+            cursor: pointer;
+            letter-spacing: 1px;
+            transition: all 0.15s;
+        }
+        .news-refresh-btn:hover {
+            border-color: #00aaff;
+            color: #00aaff;
+            box-shadow: none;
+        }
+        .news-refresh-btn.spinning { color: #00aaff; animation: spin 1s linear infinite; }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 600px) {
+            #news-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <a href="index.html"><img src="images/90s_Geek_logo.webp" alt="90s Geek Logo" class="logo"></a>
+
+    <div class="nav">
+        <a href="index.html">← SEARCH</a>
+        <a href="collection.html">COLLECTION →</a>
+        <a href="wantlist.html">WANT LIST →</a>
+    </div>
+
+    <h1>📡 LEGO News</h1>
+
+    <!-- Source filter buttons -->
+    <div class="source-filters" id="source-filters">
+        <button class="source-btn active" data-source="all" onclick="filterSource('all')">ALL SOURCES</button>
+        <!-- Source buttons injected dynamically after feeds load -->
+    </div>
+
+    <div class="news-meta-row">
+        <div class="news-count" id="news-count">> Loading feeds...</div>
+        <button class="news-refresh-btn" id="refresh-btn" onclick="loadAllFeeds(true)" title="Refresh feeds">↻ REFRESH</button>
+    </div>
+
+    <div id="news-grid">
+        <div class="news-status loading">⟳ Fetching latest LEGO news from all sources...</div>
+    </div>
+
+    <nav class="quick-links"></nav>
+
+    <script src="script.js?v=5"></script>
+    <script>
+    // ── Feed definitions ──────────────────────────────────────────
+    const FEEDS = [
+        { id: 'brickfanatics',   label: 'Brick Fanatics',    url: 'https://www.brickfanatics.com/feed/',      color: '#e84040' },
+        { id: 'thebrickfan',     label: 'The Brick Fan',     url: 'https://www.thebrickfan.com/feed/',        color: '#ff8800' },
+        { id: 'jaysbrickblog',   label: "Jay's Brick Blog",  url: 'https://jaysbrickblog.com/feed/',          color: '#00cc66' },
+        { id: 'brothersbrick',   label: 'Brothers Brick',    url: 'https://www.brothers-brick.com/feed/',     color: '#6666ff' },
+        { id: 'falconbricks',    label: 'Falcon Bricks',     url: 'https://falconbricks.com/feed/',           color: '#00cccc' },
+        { id: 'bricknerd',       label: 'Brick Nerd',        url: 'https://bricknerd.com/home?format=rss',    color: '#ff66aa' },
+    ];
+
+    // RSS2JSON proxy — free, no-key tier, 60 req/hour per IP
+    const RSS2JSON = 'https://api.rss2json.com/v1/api.json?rss_url=';
+
+    let allArticles   = [];   // flat array of all fetched articles
+    let activeSource  = 'all';
+
+    // ── Helpers ───────────────────────────────────────────────────
+
+    function stripHTML(html) {
+        const tmp = document.createElement('div');
+        tmp.innerHTML = html || '';
+        return tmp.textContent || tmp.innerText || '';
+    }
+
+    function extractImage(item) {
+        // 1. Enclosure (podcast/image attachment)
+        if (item.enclosure && item.enclosure.link && item.enclosure.type && item.enclosure.type.startsWith('image')) {
+            return item.enclosure.link;
+        }
+        // 2. thumbnail field (rss2json puts it here for media:thumbnail / media:content)
+        if (item.thumbnail && item.thumbnail.startsWith('http')) return item.thumbnail;
+        // 3. Scan description HTML for first <img>
+        const match = (item.description || '').match(/<img[^>]+src=["']([^"']+)["']/i);
+        if (match) return match[1];
+        return null;
+    }
+
+    function formatDate(dateStr) {
+        if (!dateStr) return '';
+        try {
+            const d = new Date(dateStr);
+            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        } catch { return ''; }
+    }
+
+    function sortArticles(articles) {
+        return [...articles].sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+    }
+
+    // ── Fetch a single feed ───────────────────────────────────────
+
+    async function fetchFeed(feed) {
+        const url = RSS2JSON + encodeURIComponent(feed.url) + '&count=15';
+        try {
+            const res = await fetch(url, { signal: AbortSignal.timeout(12000) });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const json = await res.json();
+            if (json.status !== 'ok') throw new Error(json.message || 'Feed error');
+
+            return json.items.map(item => ({
+                id:      feed.id,
+                label:   feed.label,
+                color:   feed.color,
+                title:   item.title || 'Untitled',
+                link:    item.link  || '#',
+                pubDate: item.pubDate || '',
+                excerpt: stripHTML(item.description).slice(0, 200),
+                image:   extractImage(item),
+            }));
+        } catch (err) {
+            console.warn(`Feed failed [${feed.label}]:`, err.message);
+            return { error: true, id: feed.id, label: feed.label, message: err.message };
+        }
+    }
+
+    // ── Render ────────────────────────────────────────────────────
+
+    function renderSourceButtons(failedIds = new Set()) {
+        const container = document.getElementById('source-filters');
+        // Keep the "ALL" button, rebuild the rest
+        container.innerHTML = `<button class="source-btn ${activeSource === 'all' ? 'active' : ''}" data-source="all" onclick="filterSource('all')">ALL SOURCES</button>`;
+        FEEDS.forEach(f => {
+            const failed = failedIds.has(f.id);
+            const btn = document.createElement('button');
+            btn.className = `source-btn ${activeSource === f.id ? 'active' : ''}`;
+            btn.dataset.source = f.id;
+            btn.onclick = () => filterSource(f.id);
+            btn.style.setProperty('--feed-color', f.color);
+            btn.innerHTML = `<span style="color:${f.color}">${f.label}</span>${failed ? ' <span style="color:#ff4444;font-size:0.8em;">✗</span>' : ''}`;
+            container.appendChild(btn);
+        });
+    }
+
+    function renderGrid(articles) {
+        const grid = document.getElementById('news-grid');
+        grid.innerHTML = '';
+
+        if (!articles.length) {
+            grid.innerHTML = '<div class="news-status">No articles found for this source.</div>';
+            return;
+        }
+
+        articles.forEach((a, i) => {
+            const card = document.createElement('div');
+            card.className = 'news-card';
+            card.style.animationDelay = `${Math.min(i * 25, 350)}ms`;
+
+            const imgHTML = a.image
+                ? `<img class="news-card-img" src="${a.image}" alt="" loading="lazy" onerror="this.parentElement.querySelector('.news-card-no-img-fallback')&&this.parentElement.querySelector('.news-card-no-img-fallback').style.setProperty('display','flex');this.style.display='none';">`
+                : `<div class="news-card-no-img">🧱</div>`;
+
+            card.innerHTML = `
+                ${imgHTML}
+                <div class="news-card-body">
+                    <div class="news-source-tag" style="color:${a.color};">${a.label}</div>
+                    <a href="${a.link}" target="_blank" rel="noopener">
+                        <div class="news-card-title">${a.title}</div>
+                    </a>
+                    ${a.excerpt ? `<div class="news-card-excerpt">${a.excerpt}</div>` : ''}
+                    <div class="news-card-footer">
+                        <span class="news-card-date">${formatDate(a.pubDate)}</span>
+                        <a class="news-card-link" href="${a.link}" target="_blank" rel="noopener">READ →</a>
+                    </div>
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+    }
+
+    function updateCount(showing, total) {
+        const el = document.getElementById('news-count');
+        if (!el) return;
+        if (showing === total) {
+            el.innerHTML = `> <span>${total}</span> article${total !== 1 ? 's' : ''} loaded`;
+        } else {
+            el.innerHTML = `> Showing <span>${showing}</span> of <span>${total}</span> articles`;
+        }
+    }
+
+    // ── Filter by source ──────────────────────────────────────────
+
+    function filterSource(sourceId) {
+        activeSource = sourceId;
+
+        // Update button states
+        document.querySelectorAll('.source-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.source === sourceId);
+        });
+
+        const filtered = sourceId === 'all'
+            ? allArticles
+            : allArticles.filter(a => a.id === sourceId);
+
+        renderGrid(filtered);
+        updateCount(filtered.length, allArticles.length);
+    }
+
+    // ── Main loader ───────────────────────────────────────────────
+
+    async function loadAllFeeds(forceRefresh = false) {
+        const grid      = document.getElementById('news-grid');
+        const refreshBtn = document.getElementById('refresh-btn');
+        const countEl   = document.getElementById('news-count');
+
+        grid.innerHTML = '<div class="news-status loading">⟳ Fetching latest LEGO news from all sources...</div>';
+        countEl.innerHTML = '> Loading feeds...';
+        if (refreshBtn) refreshBtn.classList.add('spinning');
+
+        // Fetch all feeds in parallel
+        const results = await Promise.all(FEEDS.map(f => fetchFeed(f)));
+
+        // Separate successes and failures
+        const failedIds  = new Set();
+        const goodArticles = [];
+
+        results.forEach(r => {
+            if (Array.isArray(r)) {
+                goodArticles.push(...r);
+            } else if (r.error) {
+                failedIds.add(r.id);
+            }
+        });
+
+        allArticles = sortArticles(goodArticles);
+
+        renderSourceButtons(failedIds);
+
+        if (!allArticles.length) {
+            grid.innerHTML = '<div class="news-status error">✗ Could not load any feeds. Check your connection or try refreshing.</div>';
+            countEl.innerHTML = '> No articles loaded';
+        } else {
+            const filtered = activeSource === 'all'
+                ? allArticles
+                : allArticles.filter(a => a.id === activeSource);
+            renderGrid(filtered);
+            updateCount(filtered.length, allArticles.length);
+
+            if (failedIds.size) {
+                const failedLabels = FEEDS.filter(f => failedIds.has(f.id)).map(f => f.label).join(', ');
+                // Show a subtle warning but don't interrupt the page
+                console.warn('Some feeds failed:', failedLabels);
+            }
+        }
+
+        if (refreshBtn) refreshBtn.classList.remove('spinning');
+    }
+
+    // ── Boot ──────────────────────────────────────────────────────
+    // renderQuickLinks is defined in script.js and called by window.onload,
+    // but since we're adding extra init here we hook in after the shared script runs.
+    document.addEventListener('DOMContentLoaded', () => {
+        loadAllFeeds();
+    });
+    </script>
+</body>
+</html>
