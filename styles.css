@@ -235,6 +235,13 @@ button:hover { background: #00cc00; }
     color: #888;
 }
 
+/* --- Filtering state (applied during sort/filter rebuild) --- */
+#collection-list.filtering {
+    opacity: 0.4;
+    pointer-events: none;
+    transition: opacity 0.1s;
+}
+
 /* --- List View --- */
 #collection-list {
     list-style: none;

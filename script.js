@@ -383,6 +383,10 @@ function populateFilterDropdowns(data) {
 }
 
 function applyControls() {
+    // Show filtering state while list is being rebuilt
+    const list = document.getElementById('collection-list');
+    if (list) list.classList.add('filtering');
+
     // Read sort
     const sortSelect = document.getElementById('sort-select');
     const [sortCol, sortDir] = sortSelect ? sortSelect.value.split('|') : ['created_at', 'desc'];
@@ -436,6 +440,7 @@ function clearFilters() {
 
 function renderCollection(data) {
     const list = document.getElementById('collection-list');
+    list.classList.remove('filtering');
 
     // Update count
     const countEl = document.getElementById('collection-count');
@@ -594,6 +599,10 @@ async function loadWantlist() {
 }
 
 function applyWantlistControls() {
+    // Show filtering state while list is being rebuilt
+    const list = document.getElementById('collection-list');
+    if (list) list.classList.add('filtering');
+
     const sortSelect = document.getElementById('sort-select');
     const [sortCol, sortDir] = sortSelect ? sortSelect.value.split('|') : ['created_at', 'desc'];
 
@@ -623,6 +632,7 @@ function applyWantlistControls() {
 
 function renderWantlist(data) {
     const list = document.getElementById('collection-list');
+    list.classList.remove('filtering');
 
     const countEl = document.getElementById('collection-count');
     if (countEl) {
@@ -841,24 +851,29 @@ async function confirmImport() {
 
             updateProgress(set_num);
 
-            // If name/theme/year missing, fetch from Rebrickable
-            if (!name || !theme || !year) {
+            // Always fetch from Rebrickable to get the authoritative img_url,
+            // and fill in any missing name/theme/year while we're at it
+            let img_url = null;
+            if (!name || !theme || !year || !row.img_url) {
                 const res = await fetch(`https://rebrickable.com/api/v3/lego/sets/${set_num}/`, {
                     headers: { 'Authorization': `key ${REBRICKABLE_API_KEY}` }
                 });
                 if (!res.ok) throw new Error('Not found on Rebrickable');
                 const data = await res.json();
-                name  = name  || data.name;
-                year  = year  || data.year;
-                theme = theme || await fetchTheme(data.theme_id);
+                name    = name    || data.name;
+                year    = year    || data.year;
+                theme   = theme   || await fetchTheme(data.theme_id);
+                img_url = data.set_img_url || null;
             }
+            // Fall back to constructed URL only if CSV provided all fields but no image
+            if (!img_url) img_url = row.img_url || `https://cdn.rebrickable.com/media/sets/${set_num}.jpg`;
 
             const validConditions = CONDITIONS.map(c => c.value);
             const cleanCondition = validConditions.includes(condition) ? condition : null;
 
             const { error } = await db.from('lego_collection').insert([{
                 set_num, name,
-                img_url: `https://cdn.rebrickable.com/media/sets/${set_num}.jpg`,
+                img_url,
                 year: parseInt(year) || null,
                 theme,
                 condition: cleanCondition
@@ -893,33 +908,33 @@ async function confirmImport() {
 
 
 function exportWantlist() {
-    db.from('lego_wantlist').select('*').order('created_at', { ascending: false }).then(({ data, error }) => {
-        if (error || !data.length) return alert("No data to export.");
-        const headers = ['set_num', 'name', 'theme', 'year', 'img_url'];
-        const rows = data.map(item => headers.map(h => `"${(item[h] || '').toString().replace(/"/g, '""')}"`).join(','));
-        const csv = [headers.join(','), ...rows].join('\n');
-        const blob = new Blob([csv], { type: 'text/csv' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'lego_wantlist.csv';
-        a.click();
-        URL.revokeObjectURL(url);
-    });
+    // Use in-memory cache — no need for a redundant round-trip to Supabase
+    if (!wantlistCache.length) return alert("No data to export.");
+    const sorted = [...wantlistCache].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    const headers = ['set_num', 'name', 'theme', 'year', 'img_url'];
+    const rows = sorted.map(item => headers.map(h => `"${(item[h] || '').toString().replace(/"/g, '""')}"`).join(','));
+    const csv = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'lego_wantlist.csv';
+    a.click();
+    URL.revokeObjectURL(url);
 }
 
 function exportCollection() {
-    db.from('lego_collection').select('*').order('created_at', { ascending: false }).then(({ data, error }) => {
-        if (error || !data.length) return alert("No data to export.");
-        const headers = ['set_num', 'name', 'theme', 'year', 'condition', 'img_url'];
-        const rows = data.map(item => headers.map(h => `"${(item[h] || '').toString().replace(/"/g, '""')}"`).join(','));
-        const csv = [headers.join(','), ...rows].join('\n');
-        const blob = new Blob([csv], { type: 'text/csv' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'lego_collection.csv';
-        a.click();
-        URL.revokeObjectURL(url);
-    });
+    // Use in-memory cache — no need for a redundant round-trip to Supabase
+    if (!collectionCache.length) return alert("No data to export.");
+    const sorted = [...collectionCache].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    const headers = ['set_num', 'name', 'theme', 'year', 'condition', 'img_url'];
+    const rows = sorted.map(item => headers.map(h => `"${(item[h] || '').toString().replace(/"/g, '""')}"`).join(','));
+    const csv = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'lego_collection.csv';
+    a.click();
+    URL.revokeObjectURL(url);
 }
