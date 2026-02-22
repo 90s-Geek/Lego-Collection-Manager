@@ -761,7 +761,7 @@ async function handleCSVFile(event) {
     if (!file) return;
 
     const preview = document.getElementById('import-preview');
-    preview.innerHTML = '<p style="color:#888;">Reading file...</p>';
+    preview.innerHTML = '<p style="color:#888;">⟳ Reading file...</p>';
 
     const text = await file.text();
     const rows = parseCSV(text);
@@ -771,7 +771,7 @@ async function handleCSVFile(event) {
         return;
     }
 
-    preview.innerHTML = `<p style="color:#888;">Found <span style="color:#00ffff;">${rows.length}</span> row${rows.length !== 1 ? 's' : ''}. Checking for duplicates...</p>`;
+    preview.innerHTML = `<p style="color:#888;">⟳ Checking ${rows.length} set${rows.length !== 1 ? 's' : ''} against your collection...</p>`;
 
     // Fetch existing set_nums from collection to detect duplicates
     const { data: existing } = await db.from('lego_collection').select('set_num');
@@ -813,15 +813,33 @@ async function confirmImport() {
 
     const preview = document.getElementById('import-preview');
     btn.disabled = true;
-    btn.textContent = 'IMPORTING...';
 
     let imported = 0;
     let failed = 0;
     const failedSets = [];
 
+    const updateProgress = (currentSet = '') => {
+        preview.innerHTML = `
+            <div style="border:1px solid #333;padding:15px;margin-top:10px;text-align:left;font-size:0.85em;">
+                <div style="color:#888;margin-bottom:10px;">IMPORTING...</div>
+                <div style="background:#111;border:1px solid #333;height:12px;margin-bottom:10px;box-sizing:border-box;">
+                    <div style="background:#00ff00;height:100%;width:${Math.round(((imported + failed) / toImport.length) * 100)}%;transition:width 0.2s;"></div>
+                </div>
+                <div style="color:#00ffff;margin-bottom:4px;">${imported + failed} / ${toImport.length} processed</div>
+                <div style="color:#00ff00;">✓ ${imported} added</div>
+                ${failed ? `<div style="color:#ff6666;">✗ ${failed} failed</div>` : ''}
+                ${currentSet ? `<div style="color:#555;margin-top:8px;font-size:0.8em;">⟳ ${currentSet}</div>` : ''}
+            </div>
+        `;
+    };
+
+    updateProgress();
+
     for (const row of toImport) {
         try {
             let { set_num, name, theme, year, condition } = row;
+
+            updateProgress(set_num);
 
             // If name/theme/year missing, fetch from Rebrickable
             if (!name || !theme || !year) {
@@ -848,23 +866,29 @@ async function confirmImport() {
 
             if (error) throw new Error(error.message);
             imported++;
-
-            // Update progress
-            btn.textContent = `IMPORTING... ${imported}/${toImport.length}`;
+            updateProgress(set_num);
         } catch (err) {
             failed++;
             failedSets.push(`${row.set_num} (${err.message})`);
+            updateProgress();
         }
     }
 
+    // Final state
+    preview.innerHTML = `
+        <div style="border:1px solid #333;padding:15px;margin-top:10px;text-align:left;font-size:0.85em;">
+            <div style="color:#00ff00;margin-bottom:8px;">✓ IMPORT COMPLETE</div>
+            <div style="background:#111;border:1px solid #333;height:12px;margin-bottom:10px;">
+                <div style="background:#00ff00;height:100%;width:100%;"></div>
+            </div>
+            <div style="color:#00ffff;">${imported} set${imported !== 1 ? 's' : ''} added to collection</div>
+            ${failed ? `<div style="color:#ff6666;margin-top:6px;">✗ ${failed} failed:<br>${failedSets.map(s => `<span style="color:#884444;">${s}</span>`).join('<br>')}</div>` : ''}
+        </div>
+    `;
+
     // Reload collection cache with fresh data
     await loadCollection();
-    document.getElementById('import-modal').classList.remove('active');
     document.getElementById('csv-file-input').value = '';
-
-    let msg = `Import complete: ${imported} set${imported !== 1 ? 's' : ''} added.`;
-    if (failed) msg += `\n\nFailed (${failed}):\n${failedSets.join('\n')}`;
-    alert(msg);
 }
 
 
