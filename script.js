@@ -6,6 +6,37 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let currentSet = null;
 
+// --- Theme Session Cache ---
+// Avoids redundant Rebrickable API calls for themes already fetched this session
+const themeCache = {};
+
+async function fetchTheme(id) {
+    if (themeCache[id]) return themeCache[id];
+    try {
+        const r = await fetch(`https://rebrickable.com/api/v3/lego/themes/${id}/`, {
+            headers: { 'Authorization': `key ${REBRICKABLE_API_KEY}` }
+        });
+        const t = await r.json();
+        themeCache[id] = t.name || "Unknown";
+    } catch {
+        themeCache[id] = "Unknown";
+    }
+    return themeCache[id];
+}
+
+// --- Input Debounce ---
+let filterDebounce;
+function debouncedFilter() {
+    clearTimeout(filterDebounce);
+    filterDebounce = setTimeout(() => {
+        if (isWantlistPage()) {
+            applyWantlistControls();
+        } else {
+            applyControls();
+        }
+    }, 200);
+}
+
 window.onload = () => {
     // Check if the dashboard container exists (index.html)
     if (document.getElementById('last-added-container')) {
@@ -47,12 +78,8 @@ async function searchBySetNum(input, container) {
         if (!setRes.ok) throw new Error("Set not found.");
         const setData = await setRes.json();
 
-        const themeRes = await fetch(`https://rebrickable.com/api/v3/lego/themes/${setData.theme_id}/`, {
-            headers: { 'Authorization': `key ${REBRICKABLE_API_KEY}` }
-        });
-        const themeData = await themeRes.json();
-
-        currentSet = { ...setData, theme_name: themeData.name || "Unknown Theme" };
+        const themeName = await fetchTheme(setData.theme_id);
+        currentSet = { ...setData, theme_name: themeName };
         renderSearchResult(currentSet);
     } catch (err) {
         container.innerHTML = `<p style="color:red;">${err.message}</p>`;
@@ -72,20 +99,11 @@ async function searchByName(query, container) {
             return;
         }
 
-        // Fetch all theme names in parallel
+        // Only fetch themes not already in cache
         const themeIds = [...new Set(data.results.map(s => s.theme_id))];
-        const themeMap = {};
-        await Promise.all(themeIds.map(async id => {
-            try {
-                const r = await fetch(`https://rebrickable.com/api/v3/lego/themes/${id}/`, {
-                    headers: { 'Authorization': `key ${REBRICKABLE_API_KEY}` }
-                });
-                const t = await r.json();
-                themeMap[id] = t.name || "Unknown";
-            } catch { themeMap[id] = "Unknown"; }
-        }));
+        await Promise.all(themeIds.map(id => fetchTheme(id)));
 
-        renderNameSearchResults(data.results, themeMap, query, data.count);
+        renderNameSearchResults(data.results, themeCache, query, data.count);
     } catch (err) {
         container.innerHTML = `<p style="color:red;">${err.message}</p>`;
     }
@@ -122,12 +140,9 @@ async function selectSearchResult(setNum, themeId) {
         if (!setRes.ok) throw new Error("Set not found.");
         const setData = await setRes.json();
 
-        const themeRes = await fetch(`https://rebrickable.com/api/v3/lego/themes/${themeId}/`, {
-            headers: { 'Authorization': `key ${REBRICKABLE_API_KEY}` }
-        });
-        const themeData = await themeRes.json();
-
-        currentSet = { ...setData, theme_name: themeData.name || "Unknown Theme" };
+        // fetchTheme uses cache — no extra API call if already fetched during search
+        const themeName = await fetchTheme(themeId);
+        currentSet = { ...setData, theme_name: themeName };
         renderSearchResult(currentSet);
     } catch (err) {
         container.innerHTML = `<p style="color:red;">${err.message}</p>`;
@@ -250,8 +265,11 @@ async function setView(mode) {
 let collectionCache = [];
 
 async function loadCollection() {
-    // Load saved view preference from Supabase
-    await loadViewPreference();
+    // Fetch view preference and collection data in parallel — no reason to wait on one for the other
+    const [, { data, error }] = await Promise.all([
+        loadViewPreference(),
+        db.from('lego_collection').select('*').order('created_at', { ascending: false })
+    ]);
 
     // Apply saved view preference to toggle buttons
     const btnList = document.getElementById('btn-list');
@@ -263,11 +281,6 @@ async function loadCollection() {
         if (btnList) btnList.classList.add('active');
         if (btnGrid) btnGrid.classList.remove('active');
     }
-
-    // Fetch all data once and cache it
-    const { data, error } = await db.from('lego_collection')
-        .select('*')
-        .order('created_at', { ascending: false });
 
     if (error) {
         document.getElementById('collection-list').innerHTML = '<li>Error loading collection.</li>';
@@ -437,7 +450,10 @@ async function deleteSet(id) {
     if (error) {
         alert("Error removing set: " + error.message);
     } else {
-        loadCollection(); // Re-fetch and refresh
+        // Update cache in-place — no need to re-fetch all data from Supabase
+        collectionCache = collectionCache.filter(i => i.id !== id);
+        populateFilterDropdowns(collectionCache);
+        applyControls();
     }
 }
 
@@ -470,7 +486,11 @@ async function saveToWantList() {
 let wantlistCache = [];
 
 async function loadWantlist() {
-    await loadViewPreference();
+    // Fetch view preference and wantlist data in parallel
+    const [, { data, error }] = await Promise.all([
+        loadViewPreference(),
+        db.from('lego_wantlist').select('*').order('created_at', { ascending: false })
+    ]);
 
     const btnList = document.getElementById('btn-list');
     const btnGrid = document.getElementById('btn-grid');
@@ -481,10 +501,6 @@ async function loadWantlist() {
         if (btnList) btnList.classList.add('active');
         if (btnGrid) btnGrid.classList.remove('active');
     }
-
-    const { data, error } = await db.from('lego_wantlist')
-        .select('*')
-        .order('created_at', { ascending: false });
 
     if (error) {
         document.getElementById('collection-list').innerHTML = '<li>Error loading want list.</li>';
@@ -598,14 +614,23 @@ async function moveToCollection(item) {
     }
 
     await db.from('lego_wantlist').delete().eq('id', item.id);
-    loadWantlist();
+    // Update cache in-place — no need to re-fetch all data from Supabase
+    wantlistCache = wantlistCache.filter(i => i.id !== item.id);
+    populateFilterDropdowns(wantlistCache);
+    applyWantlistControls();
 }
 
 async function deleteFromWantlist(id) {
     if (!confirm("Remove this set from your want list?")) return;
     const { error } = await db.from('lego_wantlist').delete().eq('id', id);
-    if (error) { alert("Error removing set: " + error.message); }
-    else { loadWantlist(); }
+    if (error) {
+        alert("Error removing set: " + error.message);
+    } else {
+        // Update cache in-place — no need to re-fetch all data from Supabase
+        wantlistCache = wantlistCache.filter(i => i.id !== id);
+        populateFilterDropdowns(wantlistCache);
+        applyWantlistControls();
+    }
 }
 
 function exportWantlist() {

@@ -3,9 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="90s Geek LEGO Collection Manager — browse and manage your LEGO want list.">
+    <link rel="icon" type="image/webp" href="images/90s_Geek_logo.webp">
     <title>My LEGO Want List</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="styles.css?v=2">
+    <link rel="stylesheet" href="styles.css?v=3">
     <style>
         /* --- Want list amber colour overrides --- */
         h1 { color: #ffaa00; }
@@ -78,7 +80,7 @@
         </div>
         <div class="control-row">
             <label>Search:</label>
-            <input type="text" id="filter-name" placeholder="Type to search by name..." oninput="applyWantlistControls()">
+            <input type="text" id="filter-name" placeholder="Type to search by name..." oninput="debouncedFilter()">
         </div>
         <button class="clear-filters-btn" onclick="clearFilters()">✕ CLEAR FILTERS</button>
     </div>
