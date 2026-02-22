@@ -408,6 +408,27 @@ button:hover { background: #00cc00; }
 }
 .modal-close:hover { color: #ff6666; }
 
+/* --- Tablet / small desktop (sidebar starts to crowd content) --- */
+@media (max-width: 900px) and (min-width: 601px) {
+    body {
+        margin-left: 170px;
+    }
+    .logo {
+        max-width: 90px;
+        top: 30px;
+        left: 30px;
+    }
+    .quick-links {
+        top: 165px;
+        left: 30px;
+        width: 120px;
+    }
+    .quick-links a {
+        font-size: 0.68em;
+        padding: 5px 8px;
+    }
+}
+
 /* --- Mobile --- */
 @media (max-width: 600px) {
     .logo {

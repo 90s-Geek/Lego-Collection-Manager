@@ -153,7 +153,7 @@ function renderNameSearchResults(results, themeMap, query, totalCount) {
     const container = document.getElementById('result-container');
     const rows = results.map(set => `
         <li class="search-result-item" onclick="selectSearchResult('${set.set_num}', ${set.theme_id})">
-            <img src="${set.set_img_url || ''}" width="50" style="border:1px solid #333; flex-shrink:0;">
+            <img src="${set.set_img_url || ''}" alt="${set.name}" width="50" style="border:1px solid #333; flex-shrink:0;">
             <div class="search-result-info">
                 <strong>${set.name}</strong>
                 <span class="search-result-meta">${set.set_num} &nbsp;|&nbsp; ${set.year} &nbsp;|&nbsp; ${themeMap[set.theme_id] || 'Unknown'}</span>
@@ -195,7 +195,7 @@ function renderSearchResult(set) {
         <div class="set-meta">
             <strong>Year:</strong> ${set.year} | <strong>Theme:</strong> ${set.theme_name} | <strong>Set #:</strong> ${set.set_num}
         </div>
-        <img src="${set.set_img_url}" style="max-width:250px; border:1px solid #0f0; margin-bottom: 10px;">
+        <img src="${set.set_img_url}" alt="${set.name}" style="max-width:250px; border:1px solid #0f0; margin-bottom: 10px;">
         <p>Parts: ${set.num_parts}</p>
         ${conditionSelectHTML()}
         <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-top:10px;">
@@ -257,7 +257,7 @@ async function loadLastAdded() {
     const item = data[0];
     container.innerHTML = `
         <div class="last-added-card">
-            <img src="${item.img_url}" width="60" style="border: 1px solid #00ff00;">
+            <img src="${item.img_url}" alt="${item.name}" width="60" style="border: 1px solid #00ff00;">
             <div>
                 <div style="color: #fff;">${item.name}</div>
                 <div style="font-size: 0.8em; color: #00ffff;">${item.theme} (${item.year})</div>
@@ -286,9 +286,10 @@ async function loadViewPreference() {
 async function setView(mode) {
     currentView = mode;
     const col = isWantlistPage() ? 'view_mode_wantlist' : 'view_mode';
-    await db.from('user_preferences')
+    const { error } = await db.from('user_preferences')
         .update({ [col]: mode, updated_at: new Date() })
         .eq('id', 'default');
+    if (error) console.warn('Could not save view preference:', error.message);
 
     const btnList = document.getElementById('btn-list');
     const btnGrid = document.getElementById('btn-grid');
@@ -471,7 +472,7 @@ function renderCollection(data) {
         const infoDiv = document.createElement('div');
         infoDiv.className = "collection-item-info";
         infoDiv.innerHTML = `
-            <img src="${item.img_url}" width="${currentView === 'grid' ? '100' : '50'}" style="margin-right:${currentView === 'grid' ? '0' : '10px'};border:1px solid #0f0;">
+            <img src="${item.img_url}" alt="${item.name}" width="${currentView === 'grid' ? '100' : '50'}" style="margin-right:${currentView === 'grid' ? '0' : '10px'};border:1px solid #0f0;">
             <div>
                 <strong>${item.name}</strong> (${item.year})${conditionBadge(item.condition)}<br>
                 <small style="color:#00ffff;">Theme: ${item.theme}</small>
@@ -490,6 +491,14 @@ function renderCollection(data) {
 }
 
 function showModal(item) {
+    const onWantlist = isWantlistPage();
+    const conditionSection = onWantlist ? '' : `
+        <div style="margin-top:10px;">
+            <span class="label">Condition: </span>
+            ${conditionSelectHTML(item.condition || '')}
+            <button onclick="updateCondition(${item.id})" style="margin-top:8px;width:100%;background:#00ff00;color:#000;border:none;padding:7px;font-family:'Courier New',monospace;font-weight:bold;cursor:pointer;">UPDATE CONDITION</button>
+        </div>`;
+
     document.getElementById('modal-content').innerHTML = `
         <button class="modal-close" onclick="document.getElementById('set-modal').classList.remove('active')">✕</button>
         <h2>${item.name}</h2>
@@ -498,11 +507,8 @@ function showModal(item) {
             <div><span class="label">Set #: </span><span class="value">${item.set_num || 'N/A'}</span></div>
             <div><span class="label">Year: </span><span class="value">${item.year}</span></div>
             <div><span class="label">Theme: </span><span class="value">${item.theme}</span></div>
-            <div style="margin-top:10px;">
-                <span class="label">Condition: </span>
-                ${conditionSelectHTML(item.condition || '')}
-                <button onclick="updateCondition(${item.id})" style="margin-top:8px;width:100%;background:#00ff00;color:#000;border:none;padding:7px;font-family:'Courier New',monospace;font-weight:bold;cursor:pointer;">UPDATE CONDITION</button>
-            </div>
+            ${!onWantlist && item.condition ? `<div><span class="label">Condition: </span>${conditionBadge(item.condition)}</div>` : ''}
+            ${conditionSection}
         </div>
     `;
     document.getElementById('set-modal').classList.add('active');
@@ -662,7 +668,7 @@ function renderWantlist(data) {
         const infoDiv = document.createElement('div');
         infoDiv.className = "collection-item-info";
         infoDiv.innerHTML = `
-            <img src="${item.img_url}" width="${currentView === 'grid' ? '100' : '50'}" style="margin-right:${currentView === 'grid' ? '0' : '10px'};border:1px solid #ff00ff;">
+            <img src="${item.img_url}" alt="${item.name}" width="${currentView === 'grid' ? '100' : '50'}" style="margin-right:${currentView === 'grid' ? '0' : '10px'};border:1px solid #ff00ff;">
             <div>
                 <strong>${item.name}</strong> (${item.year})<br>
                 <small style="color:#00ffff;">Theme: ${item.theme}</small>
@@ -692,19 +698,32 @@ function renderWantlist(data) {
 }
 
 async function moveToCollection(item) {
-    if (!confirm(`Move "${item.name}" to your collection?`)) return;
+    // Build a simple condition picker into the confirm flow
+    const conditionOptions = CONDITIONS.map(c => `${c.value}`).join(' / ');
+    const conditionInput = prompt(
+        `Move "${item.name}" to your collection?\n\nSet condition (leave blank to skip):\n${conditionOptions}`,
+        ''
+    );
+    if (conditionInput === null) return; // User cancelled
+
+    const validConditions = CONDITIONS.map(c => c.value);
+    const condition = validConditions.includes(conditionInput.trim()) ? conditionInput.trim() : null;
 
     const { data: existing } = await db.from('lego_collection').select('id').eq('set_num', item.set_num).limit(1);
     if (existing && existing.length > 0) {
         if (!confirm(`"${item.name}" is already in your collection. Remove it from want list anyway?`)) return;
     } else {
         const { error } = await db.from('lego_collection').insert([{
-            set_num: item.set_num, name: item.name, img_url: item.img_url, year: item.year, theme: item.theme
+            set_num: item.set_num, name: item.name, img_url: item.img_url, year: item.year, theme: item.theme,
+            condition: condition
         }]);
         if (error) { alert("Error saving to collection: " + error.message); return; }
     }
 
-    await db.from('lego_wantlist').delete().eq('id', item.id);
+    const { error: deleteError } = await db.from('lego_wantlist').delete().eq('id', item.id);
+    if (deleteError) {
+        alert("Moved to collection, but failed to remove from want list: " + deleteError.message);
+    }
     // Update cache in-place — no need to re-fetch all data from Supabase
     wantlistCache = wantlistCache.filter(i => i.id !== item.id);
     populateFilterDropdowns(wantlistCache);
@@ -727,8 +746,10 @@ async function deleteFromWantlist(id) {
 // --- CSV IMPORT ---
 
 function closeImportModal(e) {
-    if (e.target === document.getElementById('import-modal')) {
-        document.getElementById('import-modal').classList.remove('active');
+    const modal = document.getElementById('import-modal');
+    if (modal && modal.dataset.importing) return; // Locked during active import
+    if (e.target === modal) {
+        modal.classList.remove('active');
     }
 }
 
@@ -824,6 +845,12 @@ async function confirmImport() {
     const preview = document.getElementById('import-preview');
     btn.disabled = true;
 
+    // Lock the modal so it can't be closed mid-import
+    const modal = document.getElementById('import-modal');
+    const closeBtn = modal ? modal.querySelector('.modal-close') : null;
+    if (modal) modal.dataset.importing = 'true';
+    if (closeBtn) closeBtn.disabled = true;
+
     let imported = 0;
     let failed = 0;
     const failedSets = [];
@@ -904,6 +931,10 @@ async function confirmImport() {
     // Reload collection cache with fresh data
     await loadCollection();
     document.getElementById('csv-file-input').value = '';
+
+    // Unlock modal now that import is done
+    if (modal) delete modal.dataset.importing;
+    if (closeBtn) closeBtn.disabled = false;
 }
 
 
