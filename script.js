@@ -46,6 +46,16 @@ function conditionSelectHTML(selected = '') {
 }
 
 
+// Escapes user input before injecting into innerHTML to prevent XSS
+function escapeHTML(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 // Avoids redundant Rebrickable API calls for themes already fetched this session
 const themeCache = {};
 
@@ -135,7 +145,7 @@ async function searchByName(query, container) {
         const data = await res.json();
 
         if (!data.results || data.results.length === 0) {
-            container.innerHTML = `<p style="color:#ff6666;">No sets found for "<strong>${query}</strong>".</p>`;
+            container.innerHTML = `<p style="color:#ff6666;">No sets found for "<strong>${escapeHTML(query)}</strong>".</p>`;
             return;
         }
 
@@ -163,7 +173,7 @@ function renderNameSearchResults(results, themeMap, query, totalCount) {
 
     container.innerHTML = `
         <div style="text-align:left; margin-bottom:10px; font-size:0.8em; color:#888;">
-            > ${totalCount} result${totalCount !== 1 ? 's' : ''} for "<span style="color:#00ffff;">${query}</span>"
+            > ${totalCount} result${totalCount !== 1 ? 's' : ''} for "<span style="color:#00ffff;">${escapeHTML(query)}</span>"
             ${totalCount > 20 ? ' &nbsp;<span style="color:#555;">(showing top 20)</span>' : ''}
         </div>
         <ul class="search-results-list">${rows}</ul>
