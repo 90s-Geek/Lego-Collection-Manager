@@ -178,7 +178,36 @@ async function fetchTheme(id) {
     return themeCache[id];
 }
 
-// --- Input Debounce ---
+// --- Controls Panel Toggle ---
+function toggleControls() {
+    const title = document.getElementById('controls-toggle');
+    const body  = document.getElementById('controls-body');
+    if (!title || !body) return;
+    const isOpen = body.classList.contains('open');
+    body.classList.toggle('open', !isOpen);
+    title.classList.toggle('open', !isOpen);
+    title.setAttribute('aria-expanded', String(!isOpen));
+    // Persist state
+    try { localStorage.setItem('controls_open_' + (document.body.dataset.page || 'collection'), String(!isOpen)); } catch {}
+}
+
+// Restore controls panel open/closed state on load
+function restoreControlsState() {
+    const key = 'controls_open_' + (document.body.dataset.page || 'collection');
+    let open = true; // default open
+    try {
+        const stored = localStorage.getItem(key);
+        if (stored !== null) open = stored === 'true';
+    } catch {}
+    const title = document.getElementById('controls-toggle');
+    const body  = document.getElementById('controls-body');
+    if (!title || !body) return;
+    body.classList.toggle('open', open);
+    title.classList.toggle('open', open);
+    title.setAttribute('aria-expanded', String(open));
+}
+
+
 let filterDebounce;
 function debouncedFilter() {
     clearTimeout(filterDebounce);
@@ -193,6 +222,7 @@ function debouncedFilter() {
 
 window.onload = () => {
     renderQuickLinks();
+    restoreControlsState();
     // Check if the dashboard container exists (index.html)
     if (document.getElementById('last-added-container')) {
         loadLastAdded();
@@ -373,10 +403,10 @@ async function loadLastAdded() {
     const item = data[0];
     container.innerHTML = `
         <div class="last-added-card">
-            <img src="${item.img_url}" alt="${item.name}" width="60" style="border: 1px solid #00ff00;">
-            <div>
-                <div style="color: #fff;">${item.name}</div>
-                <div style="font-size: 0.8em; color: #00ffff;">${item.theme} (${item.year})</div>
+            <img src="${item.img_url}" alt="${item.name}" width="60" style="border: 1px solid #2a2a2a; flex-shrink:0;">
+            <div class="last-added-card-text">
+                <div style="color:#fff; font-size:0.9em;">${item.name}</div>
+                <div style="font-size:0.78em; color:var(--cyan); margin-top:3px;">${item.theme} &nbsp;·&nbsp; ${item.year}</div>
             </div>
         </div>
     `;
@@ -636,8 +666,9 @@ function showModal(item) {
     document.getElementById('modal-content').innerHTML = `
         <button class="modal-close" onclick="document.getElementById('set-modal').classList.remove('active')">✕</button>
         <h2>${item.name}</h2>
-        <img src="${item.img_url}" alt="${item.name}" onerror="this.onerror=null;this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'200\\' height=\\'160\\'><rect width=\\'200\\' height=\\'160\\' fill=\\'%23111\\'/><text x=\\'100\\' y=\\'72\\' text-anchor=\\'middle\\' font-family=\\'monospace\\' font-size=\\'36\\' fill=\\'%23333\\'>⊘</text><text x=\\'100\\' y=\\'100\\' text-anchor=\\'middle\\' font-family=\\'monospace\\' font-size=\\'11\\' fill=\\'%23333\\'>NO IMAGE</text></svg>';">
-        <div class="modal-meta">
+        <div class="modal-img-wrap">
+            <img src="${item.img_url}" alt="${item.name}" onerror="this.onerror=null;this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'200\\' height=\\'160\\'><rect width=\\'200\\' height=\\'160\\' fill=\\'%23111\\'/><text x=\\'100\\' y=\\'72\\' text-anchor=\\'middle\\' font-family=\\'monospace\\' font-size=\\'36\\' fill=\\'%23333\\'>⊘</text><text x=\\'100\\' y=\\'100\\' text-anchor=\\'middle\\' font-family=\\'monospace\\' font-size=\\'11\\' fill=\\'%23333\\'>NO IMAGE</text></svg>';">
+        </div>        <div class="modal-meta">
             <div><span class="label">Set #: </span><span class="value">${setNumDisplay}</span></div>
             <div><span class="label">Year: </span><span class="value">${item.year}</span></div>
             <div><span class="label">Theme: </span><span class="value">${item.theme}</span></div>
