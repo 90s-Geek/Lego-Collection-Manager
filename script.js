@@ -868,6 +868,7 @@ async function confirmImport() {
 }
 
 
+function exportWantlist() {
     db.from('lego_wantlist').select('*').order('created_at', { ascending: false }).then(({ data, error }) => {
         if (error || !data.length) return alert("No data to export.");
         const headers = ['set_num', 'name', 'theme', 'year', 'img_url'];
