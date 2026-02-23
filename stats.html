@@ -96,11 +96,10 @@
         .kpi-card:nth-child(5) .kpi-val { color: #aa44ff; }
 
         .kpi-label {
-            font-size: 0.62em;
-            color: #888;
+            font-size: 0.6em;
+            color: #555;
             text-transform: uppercase;
             letter-spacing: 2px;
-            font-weight: bold;
         }
 
         /* ── Section Wrapper ──────────────────────────────────── */
@@ -578,7 +577,7 @@
     function renderWantList(wl) {
         document.getElementById('wl-count-label').textContent = `${wl.length} sets`;
         if (!wl.length) {
-            document.getElementById('wl-strip').innerHTML = '<div style="color:#333;font-size:0.8em;">Want list is empty.</div>';
+            document.getElementById('wl-strip').innerHTML = '<div class="wl-empty-msg">Want list is empty.</div>';
             return;
         }
         const top = wl.slice(0, 16);
@@ -588,7 +587,7 @@
                      onerror="this.style.display='none'">
                 <span>${item.name}</span>
             </div>
-        `).join('') + (wl.length > 16 ? `<div class="wl-chip" style="color:#333;">+${wl.length - 16} more</div>` : '');
+        `).join('') + (wl.length > 16 ? `<div class="wl-chip wl-overflow-chip">+${wl.length - 16} more</div>` : '');
     }
 
     // ── Recent Adds ───────────────────────────────────────────

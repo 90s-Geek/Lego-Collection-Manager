@@ -1040,3 +1040,285 @@ button:hover {
     .quick-links-title { width: 100%; }
     .quick-links a { flex: 1 1 45%; }
 }
+
+
+/* ============================================================
+   EXTRACTED INLINE STYLES — formerly scattered across HTML/JS
+   ============================================================ */
+
+/* --- Utility colour text classes --- */
+.text-green   { color: var(--green); }
+.text-cyan    { color: var(--cyan); }
+.text-magenta { color: var(--magenta); }
+.text-amber   { color: var(--amber); }
+.text-white   { color: #fff; }
+.text-muted   { color: #888; }
+.text-dim     { color: #666; }
+.text-dimmer  { color: #555; }
+.text-error   { color: #ff6666; }
+.text-warn    { color: #ffaa00; }
+.text-dark    { color: #333; }
+.text-darkest { color: #884444; }
+
+/* --- Condition badge (rendered by conditionBadge() in script.js) --- */
+.condition-badge {
+    font-size: 0.7em;
+    border-width: 1px;
+    border-style: solid;
+    padding: 1px 6px;
+    margin-left: 6px;
+    vertical-align: middle;
+}
+
+/* --- Condition select (shared between modal and inline forms) --- */
+.condition-select {
+    background: #000;
+    color: var(--green);
+    border: 1px solid var(--green);
+    padding: 6px 10px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85em;
+    margin-top: 10px;
+    width: 100%;
+}
+
+/* --- Search result item thumbnail --- */
+.search-result-thumb {
+    border: 1px solid #333;
+    flex-shrink: 0;
+    background: #fff;
+}
+
+/* --- Search results header (count / query line) --- */
+.search-results-header {
+    text-align: left;
+    margin-bottom: 10px;
+    font-size: 0.8em;
+    color: #888;
+}
+.search-results-header .query-text { color: var(--cyan); }
+.search-results-header .showing-count { color: #555; }
+
+/* --- Single set result image --- */
+.set-result-img {
+    max-width: 250px;
+    border: 1px solid var(--green);
+    margin-bottom: 4px;
+    cursor: pointer;
+}
+
+/* --- Single set result action row --- */
+.set-result-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 10px;
+}
+
+/* --- Rebrickable set-num link (reused in modal + set result) --- */
+.rebrickable-link {
+    color: var(--cyan);
+    text-decoration: none;
+}
+.rebrickable-link:hover { text-decoration: underline; }
+
+/* --- Modal: "click to enlarge" hint under image --- */
+.modal-enlarge-hint {
+    font-size: 0.65em;
+    color: #333;
+    margin-top: 4px;
+    letter-spacing: 0.5px;
+    text-align: center;
+}
+
+/* --- Modal: clickable image wrap (sets detail modal) --- */
+.modal-img-wrap--clickable {
+    cursor: pointer;
+}
+
+/* --- Modal: condition update button --- */
+.condition-update-btn {
+    margin-top: 8px;
+    width: 100%;
+    background: var(--green);
+    color: #000;
+    border: none;
+    padding: 7px;
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+    cursor: pointer;
+}
+.condition-update-btn:hover {
+    background: #00cc00;
+}
+
+/* --- Modal: move-to-collection info block --- */
+.move-modal-info {
+    color: #aaa;
+    font-size: 0.88em;
+    margin-bottom: 12px;
+    line-height: 1.6;
+}
+.move-modal-info strong { color: #fff; }
+.move-modal-info span   { color: var(--cyan); }
+
+/* --- Modal: action button row (move modal, search result) --- */
+.modal-action-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+.modal-action-row .btn-confirm {
+    flex: 1;
+    background: var(--green);
+    color: #000;
+    padding: 10px;
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+    border: none;
+    cursor: pointer;
+}
+.modal-action-row .btn-cancel {
+    flex: 1;
+    background: none;
+    border: 1px solid #333;
+    color: #888;
+    padding: 10px;
+    font-family: 'Courier New', monospace;
+    cursor: pointer;
+}
+.modal-action-row .btn-confirm:hover { background: #00cc00; }
+.modal-action-row .btn-cancel:hover  { border-color: #555; color: #aaa; box-shadow: none; }
+
+/* --- Last-added card (index.html dashboard) --- */
+.last-added-card-text-name {
+    color: #fff;
+    font-size: 0.9em;
+}
+.last-added-card-text-meta {
+    font-size: 0.78em;
+    color: var(--cyan);
+    margin-top: 3px;
+}
+.last-added-img {
+    border: 1px solid #2a2a2a;
+    flex-shrink: 0;
+}
+
+/* --- Collection item: theme small text --- */
+.item-theme-label { color: var(--cyan); }
+
+/* --- Empty / no-match list message --- */
+.list-empty-msg {
+    color: #666;
+    padding: 10px;
+}
+
+/* --- Import modal: instruction text block --- */
+.import-instructions {
+    text-align: left;
+    font-size: 0.8em;
+    color: #888;
+    margin-bottom: 15px;
+    line-height: 1.7em;
+}
+.import-instructions .import-col { color: var(--cyan); }
+
+/* --- Import modal: file-select button --- */
+.import-file-btn {
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+/* --- Import preview: scroll box --- */
+.import-preview-box {
+    border: 1px solid #333;
+    padding: 12px;
+    margin-top: 10px;
+    text-align: left;
+    font-size: 0.8em;
+    max-height: 200px;
+    overflow-y: auto;
+}
+.import-preview-header {
+    color: #888;
+    margin-bottom: 8px;
+}
+.import-preview-row {
+    color: var(--green);
+    margin-bottom: 2px;
+}
+
+/* --- Import confirm button --- */
+.import-confirm-btn {
+    width: 100%;
+    margin-top: 10px;
+    background: var(--green);
+    color: #000;
+    padding: 10px;
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+    border: none;
+    cursor: pointer;
+}
+.import-confirm-btn:hover { background: #00cc00; }
+
+/* --- Import progress panel --- */
+.import-progress-panel {
+    border: 1px solid #333;
+    padding: 15px;
+    margin-top: 10px;
+    text-align: left;
+    font-size: 0.85em;
+}
+.import-progress-label {
+    color: #888;
+    margin-bottom: 10px;
+}
+.import-progress-track {
+    background: #111;
+    border: 1px solid #333;
+    height: 12px;
+    margin-bottom: 10px;
+    box-sizing: border-box;
+}
+.import-progress-fill {
+    background: var(--green);
+    height: 100%;
+    transition: width 0.2s;
+}
+.import-progress-count { color: var(--cyan); margin-bottom: 4px; }
+.import-progress-ok    { color: var(--green); }
+.import-progress-fail  { color: #ff6666; }
+.import-progress-cur   { color: #555; margin-top: 8px; font-size: 0.8em; }
+
+/* --- Import complete panel --- */
+.import-complete-label  { color: var(--green); margin-bottom: 8px; }
+.import-complete-count  { color: var(--cyan); }
+.import-fail-detail     { color: #ff6666; margin-top: 6px; }
+.import-fail-item       { color: #884444; }
+
+/* --- Bulk condition picker: header label --- */
+.bulk-condition-label {
+    color: #888;
+    font-size: 0.8em;
+}
+
+/* --- Collection meta row: right-side flex group --- */
+.meta-row-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* --- Stats: want-list empty message --- */
+.wl-empty-msg {
+    color: #333;
+    font-size: 0.8em;
+}
+
+/* --- Stats: want-list overflow chip --- */
+.wl-overflow-chip {
+    color: #333;
+}

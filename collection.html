@@ -30,14 +30,14 @@
         <div class="modal-box" id="import-modal-box">
             <button class="modal-close" onclick="document.getElementById('import-modal').classList.remove('active')">✕</button>
             <h2>Import CSV</h2>
-            <div style="text-align:left; font-size:0.8em; color:#888; margin-bottom:15px; line-height:1.7em;">
-                Upload a CSV with a <span style="color:#00ffff;">set_num</span> column.<br>
-                Optional columns: <span style="color:#00ffff;">name, theme, year, condition</span><br>
+            <div class="import-instructions">
+                Upload a CSV with a <span class="import-col">set_num</span> column.<br>
+                Optional columns: <span class="import-col">name, theme, year, condition</span><br>
                 Missing data will be fetched from Rebrickable.<br>
                 Duplicates already in your collection will be skipped.
             </div>
             <input type="file" id="csv-file-input" accept=".csv" style="display:none;" onchange="handleCSVFile(event)">
-            <button onclick="document.getElementById('csv-file-input').click()" style="width:100%;margin-bottom:10px;">SELECT CSV FILE</button>
+            <button onclick="document.getElementById('csv-file-input').click()" class="import-file-btn">SELECT CSV FILE</button>
             <div id="import-preview"></div>
         </div>
     </div>
@@ -89,7 +89,7 @@
 
     <div class="collection-meta-row">
         <div class="collection-count" id="collection-count"></div>
-        <div style="display:flex;align-items:center;gap:8px;">
+        <div class="meta-row-controls">
             <button id="bulk-toggle-btn" onclick="toggleBulkMode()" class="bulk-toggle-btn" title="Select multiple sets">☑ SELECT</button>
             <div class="view-toggle">
                 <button id="btn-list" class="active" onclick="setView('list')" title="List view">☰</button>
