@@ -1246,6 +1246,7 @@ async function loadWantlist() {
     wantlistCache = data || [];
     populateFilterDropdowns(wantlistCache);
     restoreFilterState();
+    initWantlistDrag(); // Set up drag delegation once
     applyWantlistControls();
 }
 
@@ -1331,11 +1332,6 @@ function renderWantlist(data) {
         if (dragEnabled) {
             li.draggable = true;
             li.classList.add('draggable-item');
-            li.addEventListener('dragstart', handleDragStart);
-            li.addEventListener('dragover',  handleDragOver);
-            li.addEventListener('dragleave', handleDragLeave);
-            li.addEventListener('drop',      handleDrop);
-            li.addEventListener('dragend',   handleDragEnd);
         }
 
         const infoDiv = document.createElement('div');
@@ -1354,6 +1350,7 @@ function renderWantlist(data) {
         img.src = item.img_url;
         img.alt = item.name;
         img.width = currentView === 'grid' ? 100 : 50;
+        img.draggable = false; // prevent image drag fighting row drag
         img.style.cssText = `margin-right:${currentView === 'grid' ? '0' : '10px'};border:1px solid #ff00ff;cursor:pointer;`;
         attachImgFallback(img);
         img.addEventListener('click', e => { e.stopPropagation(); openItemLightbox(item); });
@@ -1404,54 +1401,72 @@ function renderWantlist(data) {
 }
 
 // --- Wantlist Drag-to-Reorder ---
-function handleDragStart(e) {
-    dragSrcId = parseInt(this.dataset.id);
-    this.classList.add('dragging');
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', this.dataset.id);
-}
+// Uses event delegation on the list element — avoids child-element interference
 
-function handleDragOver(e) {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    this.classList.add('drag-over');
-}
+function initWantlistDrag() {
+    const list = document.getElementById('collection-list');
+    if (!list) return;
 
-function handleDragLeave() {
-    this.classList.remove('drag-over');
-}
+    list.addEventListener('dragstart', e => {
+        const li = e.target.closest('li[data-id]');
+        if (!li) return;
+        dragSrcId = parseInt(li.dataset.id);
+        li.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', li.dataset.id);
+    });
 
-async function handleDrop(e) {
-    e.preventDefault();
-    this.classList.remove('drag-over');
-    const targetId = parseInt(this.dataset.id);
-    if (!dragSrcId || dragSrcId === targetId) return;
+    list.addEventListener('dragover', e => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        const li = e.target.closest('li[data-id]');
+        // Clear any previous highlights then highlight the current target
+        list.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+        if (li && parseInt(li.dataset.id) !== dragSrcId) li.classList.add('drag-over');
+    });
 
-    // Reorder wantlistCache in-memory
-    const srcIdx = wantlistCache.findIndex(i => i.id === dragSrcId);
-    const tgtIdx = wantlistCache.findIndex(i => i.id === targetId);
-    if (srcIdx === -1 || tgtIdx === -1) return;
-
-    const [moved] = wantlistCache.splice(srcIdx, 1);
-    wantlistCache.splice(tgtIdx, 0, moved);
-
-    // Persist sort_order to Supabase — requires sort_order column in lego_wantlist
-    // Silently skip if column doesn't exist yet
-    try {
-        const updates = wantlistCache.map((item, idx) => ({ id: item.id, sort_order: idx }));
-        for (const u of updates) {
-            const { error } = await db.from('lego_wantlist').update({ sort_order: u.sort_order }).eq('id', u.id);
-            if (error && error.message.includes('sort_order')) break; // column missing — stop quietly
+    list.addEventListener('dragleave', e => {
+        // Only clear if leaving the list entirely
+        if (!list.contains(e.relatedTarget)) {
+            list.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
         }
-    } catch {}
+    });
 
-    applyWantlistControls();
-}
+    list.addEventListener('drop', async e => {
+        e.preventDefault();
+        list.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+        const li = e.target.closest('li[data-id]');
+        if (!li) return;
+        const targetId = parseInt(li.dataset.id);
+        if (!dragSrcId || dragSrcId === targetId) return;
 
-function handleDragEnd() {
-    this.classList.remove('dragging');
-    document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
-    dragSrcId = null;
+        const srcIdx = wantlistCache.findIndex(i => i.id === dragSrcId);
+        const tgtIdx = wantlistCache.findIndex(i => i.id === targetId);
+        if (srcIdx === -1 || tgtIdx === -1) return;
+
+        const [moved] = wantlistCache.splice(srcIdx, 1);
+        wantlistCache.splice(tgtIdx, 0, moved);
+
+        // Re-render immediately so it feels instant
+        applyWantlistControls();
+
+        // Persist sort_order to Supabase silently (requires sort_order column)
+        try {
+            for (let i = 0; i < wantlistCache.length; i++) {
+                const { error } = await db.from('lego_wantlist')
+                    .update({ sort_order: i })
+                    .eq('id', wantlistCache[i].id);
+                if (error && error.message && error.message.includes('sort_order')) break;
+            }
+        } catch {}
+    });
+
+    list.addEventListener('dragend', e => {
+        list.querySelectorAll('.dragging, .drag-over').forEach(el => {
+            el.classList.remove('dragging', 'drag-over');
+        });
+        dragSrcId = null;
+    });
 }
 
 function moveToCollection(item) {
