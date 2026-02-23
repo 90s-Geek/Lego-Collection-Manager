@@ -137,7 +137,7 @@ const CONDITIONS = [
 function conditionBadge(condition) {
     const c = CONDITIONS.find(x => x.value === condition);
     if (!c) return '';
-    return `<span class="condition-badge" style="border-color:${c.color};color:${c.color};">${c.label}</span>`;
+    return `<span style="font-size:0.7em;border:1px solid ${c.color};color:${c.color};padding:1px 6px;margin-left:6px;vertical-align:middle;">${c.label}</span>`;
 }
 
 // --- Image Fallback ---
@@ -153,7 +153,7 @@ function attachImgFallback(imgEl) {
 }
 
 function conditionSelectHTML(selected = '') {
-    return `<select id="condition-select" class="condition-select">
+    return `<select id="condition-select" style="background:#000;color:#00ff00;border:1px solid #00ff00;padding:6px 10px;font-family:'Courier New',monospace;font-size:0.85em;margin-top:10px;width:100%;">
         <option value="">— Set Condition —</option>
         ${CONDITIONS.map(c => `<option value="${c.value}"${selected === c.value ? ' selected' : ''}>${c.label}</option>`).join('')}
     </select>`;
@@ -377,7 +377,7 @@ function renderNameSearchResults(results, themeMap, query, totalCount) {
     const container = document.getElementById('result-container');
     const rows = results.map(set => `
         <li class="search-result-item" onclick="selectSearchResult('${set.set_num}', ${set.theme_id})">
-            <img src="${set.set_img_url || ''}" alt="${set.name}" width="50" class="search-result-thumb">
+            <img src="${set.set_img_url || ''}" alt="${set.name}" width="50" style="border:1px solid #333; flex-shrink:0; background:#fff;">
             <div class="search-result-info">
                 <strong>${escapeHTML(set.name)}</strong>
                 <span class="search-result-meta">${set.set_num} &nbsp;|&nbsp; ${set.year} &nbsp;|&nbsp; ${themeMap[set.theme_id] || 'Unknown'}</span>
@@ -391,9 +391,9 @@ function renderNameSearchResults(results, themeMap, query, totalCount) {
         : '';
 
     container.innerHTML = `
-        <div class="search-results-header">
-            > <span>${_searchTotalCount}</span> result${_searchTotalCount !== 1 ? 's' : ''} for "<span class="query-text">${escapeHTML(query)}</span>"
-            &nbsp;<span class="showing-count">(showing ${results.length})</span>
+        <div style="text-align:left; margin-bottom:10px; font-size:0.8em; color:#888;">
+            > ${_searchTotalCount} result${_searchTotalCount !== 1 ? 's' : ''} for "<span style="color:#00ffff;">${escapeHTML(query)}</span>"
+            &nbsp;<span style="color:#555;">(showing ${results.length})</span>
         </div>
         <ul class="search-results-list">${rows}</ul>
         ${loadMoreBtn}
@@ -433,16 +433,16 @@ function renderSearchResult(set) {
         <h2>${set.name}</h2>
         <div class="set-meta">
             <strong>Year:</strong> ${set.year} | <strong>Theme:</strong> ${set.theme_name} | 
-            <strong>Set #:</strong> <a href="https://rebrickable.com/sets/${set.set_num}/" target="_blank" rel="noopener" class="rebrickable-link" title="View on Rebrickable">${set.set_num} ↗</a>
+            <strong>Set #:</strong> <a href="https://rebrickable.com/sets/${set.set_num}/" target="_blank" rel="noopener" style="color:#00ffff;text-decoration:none;" title="View on Rebrickable">${set.set_num} ↗</a>
         </div>
         ${statusBanner}
         <div class="search-img-wrap" onclick="openImageLightbox()" title="Click to view details">
-            <img id="search-result-img" src="${set.set_img_url}" alt="${set.name}" class="set-result-img">
+            <img id="search-result-img" src="${set.set_img_url}" alt="${set.name}" style="max-width:250px; border:1px solid #0f0; margin-bottom:4px; cursor:pointer;">
             <div class="search-img-hint">🔍 click to enlarge</div>
         </div>
         <p>Parts: ${set.num_parts}</p>
         ${conditionSelectHTML()}
-        <div class="set-result-actions">
+        <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-top:10px;">
             <button class="save-btn" onclick="saveCurrentSet()">+ ADD TO COLLECTION</button>
             <button class="wantlist-btn" onclick="saveToWantList()">♥ ADD TO WANT LIST</button>
         </div>
@@ -679,10 +679,10 @@ async function loadLastAdded() {
     const item = data[0];
     container.innerHTML = `
         <div class="last-added-card">
-            <img src="${item.img_url}" alt="${item.name}" width="60" class="last-added-img">
+            <img src="${item.img_url}" alt="${item.name}" width="60" style="border: 1px solid #2a2a2a; flex-shrink:0;">
             <div class="last-added-card-text">
-                <div class="last-added-card-text-name">${item.name}</div>
-                <div class="last-added-card-text-meta">${item.theme} &nbsp;·&nbsp; ${item.year}</div>
+                <div style="color:#fff; font-size:0.9em;">${item.name}</div>
+                <div style="font-size:0.78em; color:var(--cyan); margin-top:3px;">${item.theme} &nbsp;·&nbsp; ${item.year}</div>
             </div>
         </div>
     `;
@@ -890,7 +890,7 @@ function renderCollection(data) {
 
     if (currentView === 'grid') list.classList.add('grid-view');
     if (!data.length) {
-        list.innerHTML = '<li class="list-empty-msg">No sets match your filters.</li>';
+        list.innerHTML = '<li style="color:#666; padding:10px;">No sets match your filters.</li>';
         return;
     }
 
@@ -926,7 +926,7 @@ function renderCollection(data) {
         const textDiv = document.createElement('div');
         textDiv.innerHTML = `
             <strong>${item.name}</strong> (${item.year})${conditionBadge(item.condition)}<br>
-            <small class="item-theme-label">Theme: ${item.theme}</small>`;
+            <small style="color:#00ffff;">Theme: ${item.theme}</small>`;
 
         infoDiv.appendChild(checkbox);
         infoDiv.appendChild(img);
@@ -959,19 +959,19 @@ function showModal(item) {
         <div style="margin-top:10px;">
             <span class="label">Condition: </span>
             ${conditionSelectHTML(item.condition || '')}
-            <button onclick="updateCondition(${item.id})" class="condition-update-btn">UPDATE CONDITION</button>
+            <button onclick="updateCondition(${item.id})" style="margin-top:8px;width:100%;background:#00ff00;color:#000;border:none;padding:7px;font-family:'Courier New',monospace;font-weight:bold;cursor:pointer;">UPDATE CONDITION</button>
         </div>`;
 
     const setNumDisplay = item.set_num
-        ? `<a href="https://rebrickable.com/sets/${item.set_num}/" target="_blank" rel="noopener" class="rebrickable-link" title="View on Rebrickable">${item.set_num} ↗</a>`
+        ? `<a href="https://rebrickable.com/sets/${item.set_num}/" target="_blank" rel="noopener" style="color:#00ffff;text-decoration:none;" title="View on Rebrickable">${item.set_num} ↗</a>`
         : 'N/A';
 
     document.getElementById('modal-content').innerHTML = `
         <button class="modal-close" onclick="document.getElementById('set-modal').classList.remove('active')">✕</button>
         <h2>${escapeHTML(item.name)}</h2>
-        <div class="modal-img-wrap modal-img-wrap--clickable" onclick="openItemLightbox(${JSON.stringify(item).replace(/"/g, '&quot;')})" title="Click to enlarge">
+        <div class="modal-img-wrap" onclick="openItemLightbox(${JSON.stringify(item).replace(/"/g, '&quot;')})" style="cursor:pointer;" title="Click to enlarge">
             <img id="modal-set-img" src="${item.img_url}" alt="${item.name}">
-            <div class="modal-enlarge-hint">🔍 click to enlarge</div>
+            <div style="font-size:0.65em;color:#333;margin-top:4px;letter-spacing:0.5px;">🔍 click to enlarge</div>
         </div>
         <div class="modal-meta">
             <div><span class="label">Set #: </span><span class="value">${setNumDisplay}</span></div>
@@ -1157,12 +1157,12 @@ function bulkConditionPrompt() {
     picker.className = 'bulk-condition-picker';
     // Use a unique ID so it never clashes with the modal's condition-select
     picker.innerHTML = `
-        <span class="bulk-condition-label">Set condition for ${bulkSelected.size} sets:</span>
-        <select id="bulk-condition-select" class="condition-select">
+        <span style="color:#888;font-size:0.8em;">Set condition for ${bulkSelected.size} sets:</span>
+        <select id="bulk-condition-select" style="background:#000;color:#00ff00;border:1px solid #00ff00;padding:6px 10px;font-family:'Courier New',monospace;font-size:0.85em;margin-top:10px;width:100%;">
             <option value="">— Set Condition —</option>
             ${CONDITIONS.map(c => `<option value="${c.value}">${c.label}</option>`).join('')}
         </select>
-        <button onclick="bulkApplyCondition()" class="import-confirm-btn" style="margin-top:6px;">APPLY</button>
+        <button onclick="bulkApplyCondition()" style="background:#00ff00;color:#000;border:none;padding:6px 12px;font-family:'Courier New',monospace;font-weight:bold;cursor:pointer;margin-top:6px;width:100%;">APPLY</button>
     `;
     const toolbar = document.getElementById('bulk-toolbar');
     toolbar.appendChild(picker);
@@ -1226,14 +1226,14 @@ async function loadWantlist() {
     // Try ordering by sort_order first; fall back to created_at if column doesn't exist yet
     const [, result] = await Promise.all([
         loadViewPreference(),
-        db.from('lego_wantlist').select('*').order('created_at', { ascending: false })
+        db.from('lego_wantlist').select('*').order('sort_order', { ascending: true, nullsFirst: false })
     ]);
 
     let { data, error } = result;
 
     // If there's an error, just try a plain fetch with no ordering
     if (error) {
-        const fallback = await db.from('lego_wantlist').select('*');
+        const fallback = await db.from('lego_wantlist').select('*').order('sort_order', { ascending: true, nullsFirst: false });
         data  = fallback.data;
         error = fallback.error;
     }
@@ -1323,7 +1323,7 @@ function renderWantlist(data) {
     list.classList.remove('grid-view');
     if (currentView === 'grid') list.classList.add('grid-view');
     if (!data.length) {
-        list.innerHTML = '<li class="list-empty-msg">No sets match your filters.</li>';
+        list.innerHTML = '<li style="color:#666; padding:10px;">No sets match your filters.</li>';
         return;
     }
 
@@ -1368,7 +1368,7 @@ function renderWantlist(data) {
         const textDiv = document.createElement('div');
         textDiv.innerHTML = `
             <strong>${item.name}</strong> (${item.year})<br>
-            <small class="item-theme-label">Theme: ${item.theme}</small>`;
+            <small style="color:#00ffff;">Theme: ${item.theme}</small>`;
 
         infoDiv.appendChild(img);
         infoDiv.appendChild(textDiv);
@@ -1487,14 +1487,14 @@ function moveToCollection(item) {
         <div class="modal-img-wrap">
             <img src="${item.img_url}" alt="${item.name}" id="move-modal-img">
         </div>
-        <div class="move-modal-info">
-            <strong>${escapeHTML(item.name)}</strong><br>
-            <span>${escapeHTML(item.theme || '')} &nbsp;·&nbsp; ${item.year || ''}</span>
+        <div style="color:#aaa;font-size:0.88em;margin-bottom:12px;line-height:1.6;">
+            <strong style="color:#fff;">${escapeHTML(item.name)}</strong><br>
+            <span style="color:#00ffff;">${escapeHTML(item.theme || '')} &nbsp;·&nbsp; ${item.year || ''}</span>
         </div>
         ${conditionSelectHTML('')}
-        <div class="modal-action-row">
-            <button onclick="confirmMoveToCollection(${item.id})" class="btn-confirm">✓ MOVE TO COLLECTION</button>
-            <button onclick="document.getElementById('set-modal').classList.remove('active')" class="btn-cancel">CANCEL</button>
+        <div style="display:flex;gap:8px;margin-top:12px;">
+            <button onclick="confirmMoveToCollection(${item.id})" style="flex:1;background:#00ff00;color:#000;padding:10px;font-family:'Courier New',monospace;font-weight:bold;border:none;cursor:pointer;">✓ MOVE TO COLLECTION</button>
+            <button onclick="document.getElementById('set-modal').classList.remove('active')" style="flex:1;background:none;border:1px solid #333;color:#888;padding:10px;font-family:'Courier New',monospace;cursor:pointer;">CANCEL</button>
         </div>
     `;
     // Attach image fallback
@@ -1632,14 +1632,14 @@ async function handleCSVFile(event) {
     }
 
     preview.innerHTML = `
-        <div class="import-preview-box">
-            <div class="import-preview-header">
-                Ready to import <span class="text-cyan">${toImport.length}</span> set${toImport.length !== 1 ? 's' : ''}
-                ${skipped ? `<span class="text-warn"> (${skipped} duplicate${skipped !== 1 ? 's' : ''} skipped)</span>` : ''}
+        <div style="border:1px solid #333;padding:12px;margin-top:10px;text-align:left;font-size:0.8em;max-height:200px;overflow-y:auto;">
+            <div style="color:#888;margin-bottom:8px;">
+                Ready to import <span style="color:#00ffff;">${toImport.length}</span> set${toImport.length !== 1 ? 's' : ''}
+                ${skipped ? `<span style="color:#ffaa00;"> (${skipped} duplicate${skipped !== 1 ? 's' : ''} skipped)</span>` : ''}
             </div>
-            ${toImport.map(r => `<div class="import-preview-row">+ ${r.set_num}${r.name ? ' — ' + r.name : ''}</div>`).join('')}
+            ${toImport.map(r => `<div style="color:#00ff00;margin-bottom:2px;">+ ${r.set_num}${r.name ? ' — ' + r.name : ''}</div>`).join('')}
         </div>
-        <button id="confirm-import-btn" onclick="confirmImport()" class="import-confirm-btn">
+        <button id="confirm-import-btn" onclick="confirmImport()" style="width:100%;margin-top:10px;background:#00ff00;color:#000;padding:10px;font-family:'Courier New',monospace;font-weight:bold;border:none;cursor:pointer;">
             ↑ IMPORT ${toImport.length} SET${toImport.length !== 1 ? 'S' : ''}
         </button>
     `;
@@ -1668,15 +1668,15 @@ async function confirmImport() {
 
     const updateProgress = (currentSet = '') => {
         preview.innerHTML = `
-            <div class="import-progress-panel">
-                <div class="import-progress-label">IMPORTING...</div>
-                <div class="import-progress-track">
-                    <div class="import-progress-fill" style="width:${Math.round(((imported + failed) / toImport.length) * 100)}%"></div>
+            <div style="border:1px solid #333;padding:15px;margin-top:10px;text-align:left;font-size:0.85em;">
+                <div style="color:#888;margin-bottom:10px;">IMPORTING...</div>
+                <div style="background:#111;border:1px solid #333;height:12px;margin-bottom:10px;box-sizing:border-box;">
+                    <div style="background:#00ff00;height:100%;width:${Math.round(((imported + failed) / toImport.length) * 100)}%;transition:width 0.2s;"></div>
                 </div>
-                <div class="import-progress-count">${imported + failed} / ${toImport.length} processed</div>
-                <div class="import-progress-ok">✓ ${imported} added</div>
-                ${failed ? `<div class="import-progress-fail">✗ ${failed} failed</div>` : ''}
-                ${currentSet ? `<div class="import-progress-cur">⟳ ${currentSet}</div>` : ''}
+                <div style="color:#00ffff;margin-bottom:4px;">${imported + failed} / ${toImport.length} processed</div>
+                <div style="color:#00ff00;">✓ ${imported} added</div>
+                ${failed ? `<div style="color:#ff6666;">✗ ${failed} failed</div>` : ''}
+                ${currentSet ? `<div style="color:#555;margin-top:8px;font-size:0.8em;">⟳ ${currentSet}</div>` : ''}
             </div>
         `;
     };
@@ -1726,14 +1726,15 @@ async function confirmImport() {
         }
     }
 
+    // Final state
     preview.innerHTML = `
-        <div class="import-progress-panel">
-            <div class="import-complete-label">✓ IMPORT COMPLETE</div>
-            <div class="import-progress-track">
-                <div class="import-progress-fill" style="width:100%"></div>
+        <div style="border:1px solid #333;padding:15px;margin-top:10px;text-align:left;font-size:0.85em;">
+            <div style="color:#00ff00;margin-bottom:8px;">✓ IMPORT COMPLETE</div>
+            <div style="background:#111;border:1px solid #333;height:12px;margin-bottom:10px;">
+                <div style="background:#00ff00;height:100%;width:100%;"></div>
             </div>
-            <div class="import-complete-count">${imported} set${imported !== 1 ? 's' : ''} added to collection</div>
-            ${failed ? `<div class="import-fail-detail">✗ ${failed} failed:<br>${failedSets.map(s => `<span class="import-fail-item">${s}</span>`).join('<br>')}</div>` : ''}
+            <div style="color:#00ffff;">${imported} set${imported !== 1 ? 's' : ''} added to collection</div>
+            ${failed ? `<div style="color:#ff6666;margin-top:6px;">✗ ${failed} failed:<br>${failedSets.map(s => `<span style="color:#884444;">${s}</span>`).join('<br>')}</div>` : ''}
         </div>
     `;
 
