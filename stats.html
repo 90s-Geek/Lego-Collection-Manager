@@ -289,21 +289,18 @@
         .tl-col:hover .tl-count { color: var(--green); }
 
         /* ── Tooltip ─────────────────────────────────────────── */
-        [data-tip] { position: relative; }
-        [data-tip]:hover::before {
-            content: attr(data-tip);
-            position: absolute;
-            bottom: calc(100% + 6px);
-            left: 50%;
-            transform: translateX(-50%);
+        #stats-tooltip {
+            position: fixed;
             background: #000;
             color: var(--cyan);
             border: 1px solid var(--cyan);
             padding: 3px 8px;
             font-size: 0.68em;
+            font-family: 'Courier New', monospace;
             white-space: nowrap;
             pointer-events: none;
-            z-index: 10;
+            z-index: 9999;
+            display: none;
         }
 
         /* ── Recent Adds ─────────────────────────────────────── */
@@ -430,6 +427,7 @@
     </div>
 
     <nav class="quick-links"></nav>
+    <div id="stats-tooltip"></div>
 
     <script src="script.js?v=8"></script>
     <script>
@@ -617,6 +615,32 @@
         if (_origOnload) _origOnload();
         loadStats();
     };
+    // ── Tooltip (viewport-aware) ──────────────────────────────
+    const tooltip = document.getElementById('stats-tooltip');
+    document.addEventListener('mouseover', e => {
+        const el = e.target.closest('[data-tip]');
+        if (!el) return;
+        tooltip.textContent = el.dataset.tip;
+        tooltip.style.display = 'block';
+    });
+    document.addEventListener('mousemove', e => {
+        if (tooltip.style.display !== 'block') return;
+        const pad = 8;
+        const tw  = tooltip.offsetWidth;
+        const th  = tooltip.offsetHeight;
+        let x = e.clientX - tw / 2;
+        let y = e.clientY - th - 10;
+        // Clamp horizontally
+        x = Math.max(pad, Math.min(x, window.innerWidth - tw - pad));
+        // Flip below cursor if too close to top
+        if (y < pad) y = e.clientY + 16;
+        tooltip.style.left = x + 'px';
+        tooltip.style.top  = y + 'px';
+    });
+    document.addEventListener('mouseout', e => {
+        if (!e.target.closest('[data-tip]')) return;
+        tooltip.style.display = 'none';
+    });
     </script>
 </body>
 </html>
