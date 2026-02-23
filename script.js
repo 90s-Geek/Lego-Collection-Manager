@@ -987,7 +987,9 @@ function showModal(item) {
 }
 
 async function updateCondition(id) {
-    const condition = document.getElementById('condition-select')?.value || null;
+    const raw = document.getElementById('condition-select')?.value || '';
+    const validConditions = CONDITIONS.map(c => c.value);
+    const condition = validConditions.includes(raw) ? raw : null;
     const { error } = await db.from('lego_collection').update({ condition }).eq('id', id);
     if (error) {
         showToast("Error updating condition: " + error.message, 'error');
@@ -996,6 +998,7 @@ async function updateCondition(id) {
     // Update cache in-place
     const item = collectionCache.find(i => i.id === id);
     if (item) item.condition = condition;
+    showToast("Condition updated!", 'success');
     applyControls();
     document.getElementById('set-modal').classList.remove('active');
 }
