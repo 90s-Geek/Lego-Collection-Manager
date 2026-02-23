@@ -987,14 +987,20 @@ function showModal(item) {
     // Auto-save condition on change
     if (!onWantlist) {
         const condSel = document.getElementById('condition-select');
-        if (condSel) condSel.addEventListener('change', () => updateCondition(item.id));
+        if (condSel) {
+            condSel.addEventListener('change', () => {
+                const value = condSel.value || null;
+                updateCondition(item.id, value);
+            });
+        }
     }
 
     document.getElementById('set-modal').classList.add('active');
 }
 
-async function updateCondition(id) {
-    const condition = document.getElementById('condition-select')?.value || null;
+async function updateCondition(id, condition) {
+    // condition is passed directly from the change event — no DOM re-query needed
+    if (condition === undefined) condition = document.getElementById('condition-select')?.value || null;
     const statusEl = document.getElementById('condition-save-status');
     if (statusEl) statusEl.textContent = '⟳ saving...';
 
