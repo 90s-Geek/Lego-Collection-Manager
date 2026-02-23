@@ -375,8 +375,8 @@ let _searchTotalCount = 0;
 function renderNameSearchResults(results, themeMap, query, totalCount) {
     if (totalCount !== null) _searchTotalCount = totalCount;
     const container = document.getElementById('result-container');
-    const rows = results.map((set, idx) => `
-        <li class="search-result-item" style="animation-delay:${Math.min(idx * 35, 350)}ms" onclick="selectSearchResult('${set.set_num}', ${set.theme_id})">
+    const rows = results.map(set => `
+        <li class="search-result-item" onclick="selectSearchResult('${set.set_num}', ${set.theme_id})">
             <img src="${set.set_img_url || ''}" alt="${set.name}" width="50" style="border:1px solid #333; flex-shrink:0; background:#fff;">
             <div class="search-result-info">
                 <strong>${escapeHTML(set.name)}</strong>
@@ -959,7 +959,7 @@ function showModal(item) {
         <div style="margin-top:10px;">
             <span class="label">Condition: </span>
             ${conditionSelectHTML(item.condition || '')}
-            <button onclick="updateCondition(${item.id})" style="margin-top:8px;width:100%;background:#00ff00;color:#000;border:none;padding:7px;font-family:'Courier New',monospace;font-weight:bold;cursor:pointer;">UPDATE CONDITION</button>
+            <div id="condition-save-status" style="font-size:0.72em;color:#444;margin-top:5px;letter-spacing:0.5px;min-height:16px;"></div>
         </div>`;
 
     const setNumDisplay = item.set_num
@@ -983,21 +983,41 @@ function showModal(item) {
     `;
     const img = document.getElementById('modal-set-img');
     if (img) attachImgFallback(img);
+
+    // Auto-save condition on change
+    if (!onWantlist) {
+        const condSel = document.getElementById('condition-select');
+        if (condSel) {
+            condSel.addEventListener('change', () => updateCondition(item.id));
+        }
+    }
+
     document.getElementById('set-modal').classList.add('active');
 }
 
 async function updateCondition(id) {
     const condition = document.getElementById('condition-select')?.value || null;
+    const statusEl = document.getElementById('condition-save-status');
+    if (statusEl) statusEl.textContent = '⟳ saving...';
+
     const { error } = await db.from('lego_collection').update({ condition }).eq('id', id);
     if (error) {
         showToast("Error updating condition: " + error.message, 'error');
+        if (statusEl) statusEl.textContent = '✗ save failed';
         return;
     }
     // Update cache in-place
     const item = collectionCache.find(i => i.id === id);
     if (item) item.condition = condition;
+
+    const label = condition || 'none';
+    showToast(`Condition set to: ${label}`, 'success');
+    if (statusEl) {
+        statusEl.style.color = '#00ff00';
+        statusEl.textContent = `✓ saved`;
+        setTimeout(() => { if (statusEl) { statusEl.textContent = ''; statusEl.style.color = '#444'; } }, 2000);
+    }
     applyControls();
-    document.getElementById('set-modal').classList.remove('active');
 }
 
 function closeModal(e) {
@@ -1146,25 +1166,29 @@ async function bulkRemoveSelected() {
 
 function bulkConditionPrompt() {
     if (!bulkSelected.size) return showToast('No sets selected.', 'warning');
-    // Show a small inline condition picker in the toolbar
+    // Toggle picker
     let picker = document.getElementById('bulk-condition-picker');
     if (picker) { picker.remove(); return; }
     picker = document.createElement('div');
     picker.id = 'bulk-condition-picker';
     picker.className = 'bulk-condition-picker';
     picker.innerHTML = `
-        <span style="color:#888;font-size:0.8em;">Set condition for ${bulkSelected.size} sets:</span>
+        <span style="color:#888;font-size:0.8em;">Set condition for ${bulkSelected.size} sets — auto-saves on select:</span>
         ${conditionSelectHTML('')}
-        <button onclick="bulkApplyCondition()" style="background:#00ff00;color:#000;border:none;padding:6px 12px;font-family:'Courier New',monospace;font-weight:bold;cursor:pointer;margin-top:6px;width:100%;">APPLY</button>
     `;
     const toolbar = document.getElementById('bulk-toolbar');
     toolbar.appendChild(picker);
+
+    // Auto-save on change
+    const sel = picker.querySelector('#condition-select');
+    if (sel) sel.addEventListener('change', bulkApplyCondition);
 }
 
 async function bulkApplyCondition() {
     const condition = document.getElementById('condition-select')?.value || null;
     const validConditions = CONDITIONS.map(c => c.value);
     const cleanCondition = validConditions.includes(condition) ? condition : null;
+    if (!cleanCondition) return; // Don't save if placeholder "— Set Condition —" selected
     const ids = [...bulkSelected];
     for (let i = 0; i < ids.length; i += 10) {
         const batch = ids.slice(i, i + 10);
@@ -1175,7 +1199,7 @@ async function bulkApplyCondition() {
         if (item) item.condition = cleanCondition;
     });
     document.getElementById('bulk-condition-picker')?.remove();
-    showToast(`Updated condition for ${ids.length} set${ids.length !== 1 ? 's' : ''}.`, 'success');
+    showToast(`Condition set to "${cleanCondition}" for ${ids.length} set${ids.length !== 1 ? 's' : ''}.`, 'success');
     applyControls();
 }
 
