@@ -1213,11 +1213,20 @@ let wantlistCache = [];
 
 async function loadWantlist() {
     // Fetch view preference and wantlist data in parallel
-    const [, { data, error }] = await Promise.all([
+    // Try ordering by sort_order first; fall back to created_at if column doesn't exist yet
+    const [, result] = await Promise.all([
         loadViewPreference(),
-        db.from('lego_wantlist').select('*').order('sort_order', { ascending: true, nullsFirst: false })
-          .order('created_at', { ascending: false })
+        db.from('lego_wantlist').select('*').order('created_at', { ascending: false })
     ]);
+
+    let { data, error } = result;
+
+    // If there's an error, just try a plain fetch with no ordering
+    if (error) {
+        const fallback = await db.from('lego_wantlist').select('*');
+        data  = fallback.data;
+        error = fallback.error;
+    }
 
     const btnList = document.getElementById('btn-list');
     const btnGrid = document.getElementById('btn-grid');
@@ -1260,11 +1269,10 @@ function applyWantlistControls() {
         return true;
     });
 
-    // When using default date-added sort AND items have sort_order, respect drag order
-    const hasSortOrder = wantlistCache.some(i => i.sort_order !== null && i.sort_order !== undefined);
+    // When using default date-added sort AND items have a sort_order set, respect drag order
+    const hasSortOrder = wantlistCache.some(i => i.sort_order !== null && i.sort_order !== undefined && i.sort_order !== '');
     if (sortCol === 'created_at' && sortDir === 'desc' && hasSortOrder) {
-        // Keep the order from wantlistCache (which is already sorted by sort_order from DB)
-        // just filter, don't re-sort
+        // Keep the order from wantlistCache (already sorted by sort_order from DB load)
     } else {
         results.sort((a, b) => {
             let valA = a[sortCol] ?? '';
@@ -1427,12 +1435,15 @@ async function handleDrop(e) {
     const [moved] = wantlistCache.splice(srcIdx, 1);
     wantlistCache.splice(tgtIdx, 0, moved);
 
-    // Persist sort_order to Supabase for all affected items
-    const updates = wantlistCache.map((item, idx) => ({ id: item.id, sort_order: idx }));
-    // Update in batches (upsert would be ideal but we'll do individual updates for simplicity)
-    for (const u of updates) {
-        await db.from('lego_wantlist').update({ sort_order: u.sort_order }).eq('id', u.id);
-    }
+    // Persist sort_order to Supabase — requires sort_order column in lego_wantlist
+    // Silently skip if column doesn't exist yet
+    try {
+        const updates = wantlistCache.map((item, idx) => ({ id: item.id, sort_order: idx }));
+        for (const u of updates) {
+            const { error } = await db.from('lego_wantlist').update({ sort_order: u.sort_order }).eq('id', u.id);
+            if (error && error.message.includes('sort_order')) break; // column missing — stop quietly
+        }
+    } catch {}
 
     applyWantlistControls();
 }
