@@ -24,7 +24,8 @@
             to   { opacity: 1; transform: translateY(0); }
         }
         @keyframes barGrow {
-            from { width: 0; }
+            from { clip-path: inset(0 100% 0 0); }
+            to   { clip-path: inset(0 0% 0 0); }
         }
         @keyframes fadeSlideIn {
             from { opacity: 0; transform: translateY(14px); }
@@ -133,12 +134,12 @@
 
         .bar-row {
             display: grid;
-            grid-template-columns: 160px 1fr 44px;
+            grid-template-columns: minmax(80px, 140px) 1fr 32px;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
         }
         .bar-label {
-            font-size: 0.75em;
+            font-size: 0.72em;
             color: #aaa;
             text-align: right;
             white-space: nowrap;
@@ -152,11 +153,13 @@
             height: 16px;
             position: relative;
             overflow: hidden;
+            min-width: 20px;
         }
         .bar-fill {
             height: 100%;
             background: var(--green);
             animation: barGrow 0.7s cubic-bezier(0.4,0,0.2,1) both;
+            transform-origin: left;
             position: relative;
         }
         .bar-fill::after {
@@ -187,8 +190,8 @@
         }
         @media (max-width: 640px) {
             .two-col { grid-template-columns: 1fr; }
-            .bar-row { grid-template-columns: 100px 1fr 36px; }
-            .bar-label { font-size: 0.68em; }
+            .bar-row { grid-template-columns: minmax(60px, 90px) 1fr 28px; }
+            .bar-label { font-size: 0.65em; }
         }
 
         /* ── Condition Donut (pure CSS) ──────────────────────── */
