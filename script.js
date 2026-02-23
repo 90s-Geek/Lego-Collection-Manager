@@ -959,7 +959,7 @@ function showModal(item) {
         <div style="margin-top:10px;">
             <span class="label">Condition: </span>
             ${conditionSelectHTML(item.condition || '')}
-            <div id="condition-save-status" style="font-size:0.72em;color:#444;margin-top:5px;letter-spacing:0.5px;min-height:16px;"></div>
+            <button onclick="updateCondition(${item.id})" style="margin-top:8px;width:100%;background:#00ff00;color:#000;border:none;padding:7px;font-family:'Courier New',monospace;font-weight:bold;cursor:pointer;">UPDATE CONDITION</button>
         </div>`;
 
     const setNumDisplay = item.set_num
@@ -983,44 +983,21 @@ function showModal(item) {
     `;
     const img = document.getElementById('modal-set-img');
     if (img) attachImgFallback(img);
-
-    // Auto-save condition on change
-    if (!onWantlist) {
-        const condSel = document.getElementById('condition-select');
-        if (condSel) {
-            condSel.addEventListener('change', () => {
-                const value = condSel.value || null;
-                updateCondition(item.id, value);
-            });
-        }
-    }
-
     document.getElementById('set-modal').classList.add('active');
 }
 
-async function updateCondition(id, condition) {
-    // condition is passed directly from the change event — no DOM re-query needed
-    if (condition === undefined) condition = document.getElementById('condition-select')?.value || null;
-    const statusEl = document.getElementById('condition-save-status');
-    if (statusEl) statusEl.textContent = '⟳ saving...';
-
+async function updateCondition(id) {
+    const condition = document.getElementById('condition-select')?.value || null;
     const { error } = await db.from('lego_collection').update({ condition }).eq('id', id);
     if (error) {
         showToast("Error updating condition: " + error.message, 'error');
-        if (statusEl) statusEl.textContent = '✗ save failed';
         return;
     }
     // Update cache in-place
     const item = collectionCache.find(i => i.id === id);
     if (item) item.condition = condition;
-
-    showToast(`Condition set to: ${condition || 'none'}`, 'success');
-    if (statusEl) {
-        statusEl.style.color = '#00ff00';
-        statusEl.textContent = '✓ saved';
-        setTimeout(() => { if (statusEl) { statusEl.textContent = ''; statusEl.style.color = '#444'; } }, 2000);
-    }
     applyControls();
+    document.getElementById('set-modal').classList.remove('active');
 }
 
 function closeModal(e) {
@@ -1169,29 +1146,32 @@ async function bulkRemoveSelected() {
 
 function bulkConditionPrompt() {
     if (!bulkSelected.size) return showToast('No sets selected.', 'warning');
-    // Toggle picker
+    // Show a small inline condition picker in the toolbar
     let picker = document.getElementById('bulk-condition-picker');
     if (picker) { picker.remove(); return; }
     picker = document.createElement('div');
     picker.id = 'bulk-condition-picker';
     picker.className = 'bulk-condition-picker';
+    // Use a unique ID so it never clashes with the modal's condition-select
     picker.innerHTML = `
-        <span style="color:#888;font-size:0.8em;">Set condition for ${bulkSelected.size} sets — auto-saves on select:</span>
-        ${conditionSelectHTML('')}
+        <span style="color:#888;font-size:0.8em;">Set condition for ${bulkSelected.size} sets:</span>
+        <select id="bulk-condition-select" style="background:#000;color:#00ff00;border:1px solid #00ff00;padding:6px 10px;font-family:'Courier New',monospace;font-size:0.85em;margin-top:10px;width:100%;">
+            <option value="">— Set Condition —</option>
+            ${CONDITIONS.map(c => `<option value="${c.value}">${c.label}</option>`).join('')}
+        </select>
+        <button onclick="bulkApplyCondition()" style="background:#00ff00;color:#000;border:none;padding:6px 12px;font-family:'Courier New',monospace;font-weight:bold;cursor:pointer;margin-top:6px;width:100%;">APPLY</button>
     `;
     const toolbar = document.getElementById('bulk-toolbar');
     toolbar.appendChild(picker);
-
-    // Auto-save on change
-    const sel = picker.querySelector('#condition-select');
-    if (sel) sel.addEventListener('change', bulkApplyCondition);
 }
 
 async function bulkApplyCondition() {
-    const condition = document.getElementById('condition-select')?.value || null;
+    const select = document.getElementById('bulk-condition-select');
+    if (!select) return showToast('Condition picker not found.', 'error');
+    const condition = select.value;
     const validConditions = CONDITIONS.map(c => c.value);
     const cleanCondition = validConditions.includes(condition) ? condition : null;
-    if (!cleanCondition) return; // Ignore placeholder selection
+    if (!cleanCondition) return showToast('Please select a condition first.', 'warning');
     const ids = [...bulkSelected];
     for (let i = 0; i < ids.length; i += 10) {
         const batch = ids.slice(i, i + 10);
@@ -1202,7 +1182,7 @@ async function bulkApplyCondition() {
         if (item) item.condition = cleanCondition;
     });
     document.getElementById('bulk-condition-picker')?.remove();
-    showToast(`Condition set to "${cleanCondition}" for ${ids.length} set${ids.length !== 1 ? 's' : ''}.`, 'success');
+    showToast(`Updated condition for ${ids.length} set${ids.length !== 1 ? 's' : ''}.`, 'success');
     applyControls();
 }
 
@@ -1240,10 +1220,10 @@ let wantlistCache = [];
 
 async function loadWantlist() {
     // Fetch view preference and wantlist data in parallel
-    // Order by sort_order (drag order) first, falling back to created_at for unsorted items
+    // Try ordering by sort_order first; fall back to created_at if column doesn't exist yet
     const [, result] = await Promise.all([
         loadViewPreference(),
-        db.from('lego_wantlist').select('*').order('sort_order', { ascending: true, nullsFirst: false }).order('created_at', { ascending: false })
+        db.from('lego_wantlist').select('*').order('created_at', { ascending: false })
     ]);
 
     let { data, error } = result;
