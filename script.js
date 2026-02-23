@@ -990,45 +990,11 @@ async function updateCondition(id) {
     const raw = document.getElementById('condition-select')?.value || '';
     const validConditions = CONDITIONS.map(c => c.value);
     const condition = validConditions.includes(raw) ? raw : null;
-
-    // Diagnostic: log exactly what we're sending
-    console.log('[updateCondition] id:', id, '| type:', typeof id);
-    console.log('[updateCondition] condition:', condition);
-
-    // Step 1: Verify the row actually exists before trying to update
-    const { data: checkData, error: checkError } = await db
-        .from('lego_collection')
-        .select('id, condition')
-        .eq('id', id);
-
-    console.log('[updateCondition] pre-update row lookup:', checkData, checkError);
-
-    if (!checkData || checkData.length === 0) {
-        showToast(`ERROR: No row found with id=${id}. Check console.`, 'error');
-        return;
-    }
-
-    // Step 2: Attempt the update and capture full response
-    const { data: updateData, error, status, statusText } = await db
-        .from('lego_collection')
-        .update({ condition })
-        .eq('id', id)
-        .select();
-
-    console.log('[updateCondition] update response — status:', status, statusText);
-    console.log('[updateCondition] update data:', updateData);
-    console.log('[updateCondition] update error:', error);
-
+    const { error } = await db.from('lego_collection').update({ condition }).eq('id', id);
     if (error) {
         showToast("Error updating condition: " + error.message, 'error');
         return;
     }
-
-    if (!updateData || updateData.length === 0) {
-        showToast(`Update sent but no rows changed. RLS policy may be blocking writes. Check console.`, 'error');
-        return;
-    }
-
     // Update cache in-place
     const item = collectionCache.find(i => i.id === id);
     if (item) item.condition = condition;
