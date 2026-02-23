@@ -28,9 +28,10 @@
         .wantlist-btn:hover { background: #cc8800; }
 
         .search-results-list { list-style: none; padding: 0; margin: 0; text-align: left; max-height: 480px; overflow-y: auto; }
-        .search-result-item { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-bottom: 1px solid #222; cursor: pointer; transition: background 0.1s; }
-        .search-result-item:hover { background: #1a2e1a; }
+        .search-result-item { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-bottom: 1px solid #1a1a1a; cursor: pointer; transition: background 0.15s, border-left-color 0.15s; border-left: 2px solid transparent; animation: searchItemIn 0.2s ease both; }
+        .search-result-item:hover { background: #111; border-left-color: var(--green, #00ff00); }
         .search-result-item:last-child { border-bottom: none; }
+        @keyframes searchItemIn { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: translateX(0); } }
         .search-result-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
         .search-result-info strong { color: #fff; font-size: 0.9em; word-break: break-word; }
         .search-result-meta { color: #666; font-size: 0.75em; }

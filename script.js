@@ -375,8 +375,8 @@ let _searchTotalCount = 0;
 function renderNameSearchResults(results, themeMap, query, totalCount) {
     if (totalCount !== null) _searchTotalCount = totalCount;
     const container = document.getElementById('result-container');
-    const rows = results.map(set => `
-        <li class="search-result-item" onclick="selectSearchResult('${set.set_num}', ${set.theme_id})">
+    const rows = results.map((set, idx) => `
+        <li class="search-result-item" style="animation-delay:${Math.min(idx * 35, 350)}ms" onclick="selectSearchResult('${set.set_num}', ${set.theme_id})">
             <img src="${set.set_img_url || ''}" alt="${set.name}" width="50" style="border:1px solid #333; flex-shrink:0; background:#fff;">
             <div class="search-result-info">
                 <strong>${escapeHTML(set.name)}</strong>
