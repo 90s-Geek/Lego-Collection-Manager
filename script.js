@@ -987,9 +987,7 @@ function showModal(item) {
     // Auto-save condition on change
     if (!onWantlist) {
         const condSel = document.getElementById('condition-select');
-        if (condSel) {
-            condSel.addEventListener('change', () => updateCondition(item.id));
-        }
+        if (condSel) condSel.addEventListener('change', () => updateCondition(item.id));
     }
 
     document.getElementById('set-modal').classList.add('active');
@@ -1010,11 +1008,10 @@ async function updateCondition(id) {
     const item = collectionCache.find(i => i.id === id);
     if (item) item.condition = condition;
 
-    const label = condition || 'none';
-    showToast(`Condition set to: ${label}`, 'success');
+    showToast(`Condition set to: ${condition || 'none'}`, 'success');
     if (statusEl) {
         statusEl.style.color = '#00ff00';
-        statusEl.textContent = `✓ saved`;
+        statusEl.textContent = '✓ saved';
         setTimeout(() => { if (statusEl) { statusEl.textContent = ''; statusEl.style.color = '#444'; } }, 2000);
     }
     applyControls();
@@ -1188,7 +1185,7 @@ async function bulkApplyCondition() {
     const condition = document.getElementById('condition-select')?.value || null;
     const validConditions = CONDITIONS.map(c => c.value);
     const cleanCondition = validConditions.includes(condition) ? condition : null;
-    if (!cleanCondition) return; // Don't save if placeholder "— Set Condition —" selected
+    if (!cleanCondition) return; // Ignore placeholder selection
     const ids = [...bulkSelected];
     for (let i = 0; i < ids.length; i += 10) {
         const batch = ids.slice(i, i + 10);
