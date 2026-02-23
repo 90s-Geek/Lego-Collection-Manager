@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="90s Geek LEGO Collection Manager — stats and analytics for your collection.">
+    <link rel="icon" type="image/webp" href="images/90s_Geek_logo.webp">
+    <title>Collection Stats</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="styles.css?v=8">
+    <style>
+        /* ── Stats Page Specific ───────────────────────────────── */
+
+        /* Boot sequence animation */
+        @keyframes scanline {
+            0%   { transform: translateY(-100%); }
+            100% { transform: translateY(100vh); }
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; } 50% { opacity: 0; }
+        }
+        @keyframes countUp {
+            from { opacity: 0; transform: translateY(6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes barGrow {
+            from { width: 0; }
+        }
+        @keyframes fadeSlideIn {
+            from { opacity: 0; transform: translateY(14px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 8px rgba(0,255,0,0.2); }
+            50%       { box-shadow: 0 0 20px rgba(0,255,0,0.5); }
+        }
+
+        /* Scanline overlay */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0,0,0,0.04) 2px,
+                rgba(0,0,0,0.04) 4px
+            );
+            pointer-events: none;
+            z-index: 9998;
+        }
+
+        h1 { color: var(--magenta); text-shadow: 0 0 18px rgba(255,0,255,0.35); }
+
+        /* ── KPI Hero Row ─────────────────────────────────────── */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+            margin-bottom: 24px;
+        }
+
+        .kpi-card {
+            background: #1a1a1a;
+            border: 1px solid #2a2a2a;
+            border-top: 3px solid var(--green);
+            padding: 16px 14px 14px;
+            text-align: center;
+            animation: fadeSlideIn 0.4s ease both;
+            transition: border-top-color 0.2s, box-shadow 0.2s;
+        }
+        .kpi-card:hover {
+            border-top-color: var(--cyan);
+            box-shadow: 0 0 14px rgba(0,255,255,0.1);
+        }
+        .kpi-card:nth-child(2) { animation-delay: 0.05s; border-top-color: var(--cyan); }
+        .kpi-card:nth-child(3) { animation-delay: 0.10s; border-top-color: var(--magenta); }
+        .kpi-card:nth-child(4) { animation-delay: 0.15s; border-top-color: var(--amber); }
+        .kpi-card:nth-child(5) { animation-delay: 0.20s; border-top-color: #aa44ff; }
+        .kpi-card:nth-child(6) { animation-delay: 0.25s; border-top-color: var(--green); }
+
+        .kpi-val {
+            font-size: 2em;
+            font-weight: bold;
+            color: var(--green);
+            letter-spacing: 2px;
+            line-height: 1;
+            margin-bottom: 6px;
+            animation: countUp 0.5s ease both;
+        }
+        .kpi-card:nth-child(2) .kpi-val { color: var(--cyan); }
+        .kpi-card:nth-child(3) .kpi-val { color: var(--magenta); }
+        .kpi-card:nth-child(4) .kpi-val { color: var(--amber); }
+        .kpi-card:nth-child(5) .kpi-val { color: #aa44ff; }
+
+        .kpi-label {
+            font-size: 0.6em;
+            color: #555;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        /* ── Section Wrapper ──────────────────────────────────── */
+        .stats-section {
+            margin-bottom: 24px;
+            animation: fadeSlideIn 0.4s ease both;
+        }
+        .stats-section:nth-child(2) { animation-delay: 0.1s; }
+        .stats-section:nth-child(3) { animation-delay: 0.15s; }
+        .stats-section:nth-child(4) { animation-delay: 0.2s; }
+        .stats-section:nth-child(5) { animation-delay: 0.25s; }
+        .stats-section:nth-child(6) { animation-delay: 0.3s; }
+
+        .section-title {
+            font-size: 0.68em;
+            color: var(--magenta);
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            padding: 8px 12px;
+            background: #1a001a;
+            border: 1px solid #330033;
+            border-left: 3px solid var(--magenta);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .section-title span { color: #444; font-size: 0.85em; }
+
+        /* ── Bar Chart ────────────────────────────────────────── */
+        .bar-chart { display: flex; flex-direction: column; gap: 7px; }
+
+        .bar-row {
+            display: grid;
+            grid-template-columns: 160px 1fr 44px;
+            align-items: center;
+            gap: 8px;
+        }
+        .bar-label {
+            font-size: 0.75em;
+            color: #aaa;
+            text-align: right;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: default;
+        }
+        .bar-track {
+            background: #1a1a1a;
+            border: 1px solid #222;
+            height: 16px;
+            position: relative;
+            overflow: hidden;
+        }
+        .bar-fill {
+            height: 100%;
+            background: var(--green);
+            animation: barGrow 0.7s cubic-bezier(0.4,0,0.2,1) both;
+            position: relative;
+        }
+        .bar-fill::after {
+            content: '';
+            position: absolute;
+            right: 0; top: 0; bottom: 0;
+            width: 3px;
+            background: rgba(255,255,255,0.3);
+        }
+        .bar-count {
+            font-size: 0.72em;
+            color: #555;
+            text-align: left;
+        }
+
+        /* Colour variants */
+        .bar-fill.cyan    { background: var(--cyan);    }
+        .bar-fill.magenta { background: var(--magenta); }
+        .bar-fill.amber   { background: var(--amber);   }
+        .bar-fill.purple  { background: #aa44ff;        }
+        .bar-fill.red     { background: var(--red);     }
+
+        /* ── Two-column layout for smaller charts ────────────── */
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        @media (max-width: 640px) {
+            .two-col { grid-template-columns: 1fr; }
+            .bar-row { grid-template-columns: 100px 1fr 36px; }
+            .bar-label { font-size: 0.68em; }
+        }
+
+        /* ── Condition Donut (pure CSS) ──────────────────────── */
+        .condition-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+        .condition-tile {
+            background: #1a1a1a;
+            border: 1px solid #2a2a2a;
+            padding: 12px;
+            text-align: center;
+            transition: border-color 0.15s;
+        }
+        .condition-tile:hover { border-color: #444; }
+        .condition-tile-val {
+            font-size: 1.8em;
+            font-weight: bold;
+            line-height: 1;
+            margin-bottom: 4px;
+        }
+        .condition-tile-pct {
+            font-size: 0.65em;
+            color: #444;
+            margin-bottom: 4px;
+        }
+        .condition-tile-label {
+            font-size: 0.6em;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #666;
+        }
+        .condition-tile-bar {
+            height: 3px;
+            margin-top: 8px;
+            transition: width 0.5s;
+        }
+
+        /* ── Timeline (years) ────────────────────────────────── */
+        .timeline-wrap {
+            overflow-x: auto;
+            padding-bottom: 6px;
+        }
+        .timeline {
+            display: flex;
+            align-items: flex-end;
+            gap: 4px;
+            min-width: max-content;
+            height: 100px;
+            padding: 0 2px;
+        }
+        .tl-col {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            cursor: default;
+        }
+        .tl-bar {
+            width: 22px;
+            background: var(--green);
+            min-height: 4px;
+            animation: barGrow 0.6s cubic-bezier(0.4,0,0.2,1) both;
+            transition: background 0.15s;
+            position: relative;
+        }
+        .tl-col:hover .tl-bar { background: var(--cyan); }
+        .tl-count {
+            font-size: 0.58em;
+            color: #555;
+            line-height: 1;
+        }
+        .tl-year {
+            font-size: 0.58em;
+            color: #444;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            transform: rotate(180deg);
+            height: 34px;
+            display: flex;
+            align-items: center;
+        }
+        .tl-col:hover .tl-year  { color: var(--cyan); }
+        .tl-col:hover .tl-count { color: var(--green); }
+
+        /* ── Tooltip ─────────────────────────────────────────── */
+        [data-tip] { position: relative; }
+        [data-tip]:hover::before {
+            content: attr(data-tip);
+            position: absolute;
+            bottom: calc(100% + 6px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: #000;
+            color: var(--cyan);
+            border: 1px solid var(--cyan);
+            padding: 3px 8px;
+            font-size: 0.68em;
+            white-space: nowrap;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        /* ── Recent Adds ─────────────────────────────────────── */
+        .recent-list { display: flex; flex-direction: column; gap: 6px; }
+        .recent-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 7px 10px;
+            background: #1a1a1a;
+            border: 1px solid #252525;
+            border-left: 2px solid #2a2a2a;
+            font-size: 0.82em;
+            transition: border-left-color 0.15s;
+        }
+        .recent-item:hover { border-left-color: var(--cyan); }
+        .recent-item img {
+            width: 38px;
+            height: 30px;
+            object-fit: contain;
+            background: #fff;
+            flex-shrink: 0;
+            border: 1px solid #2a2a2a;
+        }
+        .recent-item-name { color: #ddd; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .recent-item-meta { color: #444; font-size: 0.85em; white-space: nowrap; }
+        .recent-item-date { color: #333; font-size: 0.78em; white-space: nowrap; }
+
+        /* ── Want List preview ───────────────────────────────── */
+        .wl-strip {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .wl-chip {
+            background: #1a0e00;
+            border: 1px solid #3a2200;
+            border-left: 2px solid var(--amber);
+            padding: 5px 10px;
+            font-size: 0.75em;
+            color: #aaa;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: border-left-color 0.15s, color 0.15s;
+        }
+        .wl-chip:hover { border-left-color: var(--magenta); color: #fff; }
+        .wl-chip img {
+            width: 28px;
+            height: 22px;
+            object-fit: contain;
+            background: #fff;
+        }
+
+        /* ── Loading / empty states ──────────────────────────── */
+        .stats-loading {
+            color: #444;
+            font-size: 0.8em;
+            letter-spacing: 2px;
+            padding: 20px 0;
+            text-align: center;
+        }
+        .stats-loading::after {
+            content: '...';
+            animation: blink 1s step-end infinite;
+        }
+
+        /* ── Highlight number ────────────────────────────────── */
+        .hl-green   { color: var(--green); }
+        .hl-cyan    { color: var(--cyan); }
+        .hl-magenta { color: var(--magenta); }
+        .hl-amber   { color: var(--amber); }
+
+    </style>
+</head>
+<body>
+    <div class="sidebar-panel"></div>
+    <a href="index.html"><img src="images/90s_Geek_logo.webp" alt="90s Geek Logo" class="logo"></a>
+
+    <div class="nav">
+        <a href="index.html">← SEARCH</a>
+        <a href="collection.html">COLLECTION →</a>
+        <a href="wantlist.html">WANT LIST →</a>
+    </div>
+
+    <h1>⬡ Collection Stats</h1>
+
+    <!-- KPI Row -->
+    <div class="kpi-grid" id="kpi-grid">
+        <div class="stats-loading">Loading stats</div>
+    </div>
+
+    <!-- Themes + Years -->
+    <div class="two-col">
+        <div class="stats-section">
+            <div class="section-title">> TOP THEMES <span id="theme-count-label"></span></div>
+            <div class="bar-chart" id="theme-chart"><div class="stats-loading">Loading</div></div>
+        </div>
+        <div class="stats-section">
+            <div class="section-title">> SETS BY DECADE / YEAR</div>
+            <div class="timeline-wrap">
+                <div class="timeline" id="year-chart"><div class="stats-loading">Loading</div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Condition + Want List -->
+    <div class="two-col">
+        <div class="stats-section">
+            <div class="section-title">> CONDITION BREAKDOWN</div>
+            <div class="condition-grid" id="condition-chart"><div class="stats-loading">Loading</div></div>
+        </div>
+        <div class="stats-section">
+            <div class="section-title">> WANT LIST <span id="wl-count-label"></span></div>
+            <div class="wl-strip" id="wl-strip"><div class="stats-loading">Loading</div></div>
+        </div>
+    </div>
+
+    <!-- Recently Added -->
+    <div class="stats-section">
+        <div class="section-title">> RECENTLY ADDED <span>last 10 sets</span></div>
+        <div class="recent-list" id="recent-list"><div class="stats-loading">Loading</div></div>
+    </div>
+
+    <nav class="quick-links"></nav>
+
+    <script src="script.js?v=8"></script>
+    <script>
+    // ── Config (same as script.js) ────────────────────────────
+    // These are already defined by script.js, but stats.html loads
+    // script.js first which sets up `db`. We just need to call our
+    // own init after that.
+
+    // ── Helpers ───────────────────────────────────────────────
+    function fmt(n) { return Number(n).toLocaleString(); }
+
+    function relativeDate(iso) {
+        if (!iso) return '';
+        const d = new Date(iso);
+        const now = new Date();
+        const days = Math.floor((now - d) / 86400000);
+        if (days === 0) return 'today';
+        if (days === 1) return 'yesterday';
+        if (days < 7)  return `${days}d ago`;
+        if (days < 30) return `${Math.floor(days/7)}w ago`;
+        if (days < 365) return `${Math.floor(days/30)}mo ago`;
+        return `${Math.floor(days/365)}y ago`;
+    }
+
+    // ── Main loader ───────────────────────────────────────────
+    async function loadStats() {
+        const [colRes, wlRes] = await Promise.all([
+            db.from('lego_collection').select('*').order('created_at', { ascending: false }),
+            db.from('lego_wantlist').select('*').order('created_at', { ascending: false })
+        ]);
+
+        const col = colRes.data || [];
+        const wl  = wlRes.data  || [];
+
+        renderKPIs(col, wl);
+        renderThemeChart(col);
+        renderYearChart(col);
+        renderConditionChart(col);
+        renderWantList(wl);
+        renderRecentList(col);
+    }
+
+    // ── KPIs ──────────────────────────────────────────────────
+    function renderKPIs(col, wl) {
+        const themes     = new Set(col.map(i => i.theme).filter(Boolean)).size;
+        const years      = col.map(i => i.year).filter(Boolean);
+        const earliest   = years.length ? Math.min(...years) : '—';
+        const newest     = years.length ? Math.max(...years) : '—';
+        const sealed     = col.filter(i => i.condition === 'Sealed').length;
+        const unconditioned = col.filter(i => !i.condition).length;
+
+        const kpis = [
+            { val: fmt(col.length),    label: 'Sets in Collection', color: 'green' },
+            { val: fmt(wl.length),     label: 'On Want List',       color: 'amber' },
+            { val: fmt(themes),        label: 'Unique Themes',      color: 'cyan' },
+            { val: sealed,             label: 'Sealed Sets',        color: 'magenta' },
+            { val: earliest,           label: 'Oldest Year',        color: 'purple' },
+            { val: newest,             label: 'Newest Year',        color: 'green' },
+        ];
+
+        document.getElementById('kpi-grid').innerHTML = kpis.map(k => `
+            <div class="kpi-card">
+                <div class="kpi-val">${k.val}</div>
+                <div class="kpi-label">${k.label}</div>
+            </div>
+        `).join('');
+    }
+
+    // ── Theme Bar Chart ───────────────────────────────────────
+    function renderThemeChart(col) {
+        const counts = {};
+        col.forEach(i => { if (i.theme) counts[i.theme] = (counts[i.theme] || 0) + 1; });
+        const sorted = Object.entries(counts).sort((a,b) => b[1]-a[1]);
+        const top    = sorted.slice(0, 12);
+        const max    = top[0]?.[1] || 1;
+        const colors = ['', 'cyan', 'magenta', 'amber', 'purple', 'red', '', 'cyan', 'magenta', 'amber', 'purple', 'red'];
+
+        document.getElementById('theme-count-label').textContent = `${sorted.length} themes total`;
+        document.getElementById('theme-chart').innerHTML = top.map(([theme, count], i) => `
+            <div class="bar-row" data-tip="${theme}: ${count} set${count !== 1 ? 's' : ''}">
+                <div class="bar-label">${theme}</div>
+                <div class="bar-track">
+                    <div class="bar-fill ${colors[i]}" style="width:${(count/max*100).toFixed(1)}%;animation-delay:${i*40}ms"></div>
+                </div>
+                <div class="bar-count">${count}</div>
+            </div>
+        `).join('') || '<div class="stats-loading">No data</div>';
+    }
+
+    // ── Year Timeline ─────────────────────────────────────────
+    function renderYearChart(col) {
+        const counts = {};
+        col.forEach(i => { if (i.year) counts[i.year] = (counts[i.year] || 0) + 1; });
+        const years  = Object.keys(counts).map(Number).sort((a,b) => a-b);
+        if (!years.length) {
+            document.getElementById('year-chart').innerHTML = '<div class="stats-loading">No data</div>';
+            return;
+        }
+        const max = Math.max(...Object.values(counts));
+        const MAX_H = 68; // px for tallest bar
+
+        document.getElementById('year-chart').innerHTML = years.map((yr, i) => {
+            const c   = counts[yr];
+            const h   = Math.max(4, Math.round((c / max) * MAX_H));
+            return `
+                <div class="tl-col" data-tip="${yr}: ${c} set${c !== 1 ? 's' : ''}">
+                    <div class="tl-count">${c}</div>
+                    <div class="tl-bar" style="height:${h}px;animation-delay:${i*18}ms"></div>
+                    <div class="tl-year">${yr}</div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // ── Condition Breakdown ───────────────────────────────────
+    function renderConditionChart(col) {
+        const COND = [
+            { value: 'Sealed',     color: '#00ff00' },
+            { value: 'Complete',   color: '#00ffff' },
+            { value: 'Incomplete', color: '#ffaa00' },
+            { value: 'Display',    color: '#ff00ff' },
+        ];
+        const total = col.length || 1;
+        const unset = col.filter(i => !i.condition).length;
+        const rows  = [...COND.map(c => ({ label: c.value, color: c.color, count: col.filter(i => i.condition === c.value).length })),
+                        { label: 'Unset', color: '#333', count: unset }].filter(r => r.count > 0);
+
+        if (!rows.length) {
+            document.getElementById('condition-chart').innerHTML = '<div class="stats-loading">No data</div>';
+            return;
+        }
+
+        document.getElementById('condition-chart').innerHTML = rows.map(r => {
+            const pct = ((r.count / total) * 100).toFixed(0);
+            return `
+                <div class="condition-tile">
+                    <div class="condition-tile-val" style="color:${r.color}">${r.count}</div>
+                    <div class="condition-tile-pct">${pct}%</div>
+                    <div class="condition-tile-label">${r.label}</div>
+                    <div class="condition-tile-bar" style="background:${r.color};width:${pct}%"></div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // ── Want List Strip ───────────────────────────────────────
+    function renderWantList(wl) {
+        document.getElementById('wl-count-label').textContent = `${wl.length} sets`;
+        if (!wl.length) {
+            document.getElementById('wl-strip').innerHTML = '<div style="color:#333;font-size:0.8em;">Want list is empty.</div>';
+            return;
+        }
+        const top = wl.slice(0, 16);
+        document.getElementById('wl-strip').innerHTML = top.map(item => `
+            <div class="wl-chip" title="${item.name} (${item.year})">
+                <img src="${item.img_url || ''}" alt="${item.name}"
+                     onerror="this.style.display='none'">
+                <span>${item.name}</span>
+            </div>
+        `).join('') + (wl.length > 16 ? `<div class="wl-chip" style="color:#333;">+${wl.length - 16} more</div>` : '');
+    }
+
+    // ── Recent Adds ───────────────────────────────────────────
+    function renderRecentList(col) {
+        const recent = col.slice(0, 10);
+        if (!recent.length) {
+            document.getElementById('recent-list').innerHTML = '<div class="stats-loading">No sets yet</div>';
+            return;
+        }
+        document.getElementById('recent-list').innerHTML = recent.map((item, i) => `
+            <div class="recent-item" style="animation:fadeSlideIn 0.3s ease ${i*40}ms both">
+                <img src="${item.img_url || ''}" alt="${item.name}"
+                     onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'38\\' height=\\'30\\'><rect width=\\'38\\' height=\\'30\\' fill=\\'%23111\\'/></svg>'">
+                <div class="recent-item-name">${item.name}</div>
+                <div class="recent-item-meta">${item.theme || '—'} · ${item.year || '—'}</div>
+                <div class="recent-item-date">${relativeDate(item.created_at)}</div>
+            </div>
+        `).join('');
+    }
+
+    // ── Boot ──────────────────────────────────────────────────
+    // script.js sets window.onload — override to also call loadStats
+    const _origOnload = window.onload;
+    window.onload = () => {
+        if (_origOnload) _origOnload();
+        loadStats();
+    };
+    </script>
+</body>
+</html>
