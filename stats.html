@@ -241,16 +241,16 @@
 
         /* ── Timeline (years) ────────────────────────────────── */
         .timeline-wrap {
-            overflow-x: auto;
+            overflow: hidden;
             padding-bottom: 6px;
         }
         .timeline {
             display: flex;
             align-items: flex-end;
-            gap: 6px;
-            min-width: max-content;
+            gap: 3px;
             height: 130px;
             padding: 0 2px;
+            width: 100%;
         }
         .tl-col {
             display: flex;
@@ -258,9 +258,11 @@
             align-items: center;
             gap: 4px;
             cursor: default;
+            flex: 1;
+            min-width: 0;
         }
         .tl-bar {
-            width: 28px;
+            width: 100%;
             background: var(--green);
             min-height: 4px;
             animation: barGrow 0.6s cubic-bezier(0.4,0,0.2,1) both;
