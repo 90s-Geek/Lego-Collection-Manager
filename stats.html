@@ -190,14 +190,7 @@
         .bar-fill.purple  { background: #aa44ff;        }
         .bar-fill.red     { background: var(--red);     }
 
-        /* ── Two-column layout for smaller charts ────────────── */
-        .two-col {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-        }
         @media (max-width: 640px) {
-            .two-col { grid-template-columns: 1fr; }
             .bar-row { grid-template-columns: minmax(60px, 90px) 1fr 28px; }
             .bar-label { font-size: 0.65em; }
         }
@@ -329,32 +322,6 @@
         .recent-item-meta { color: #444; font-size: 0.85em; white-space: nowrap; }
         .recent-item-date { color: #333; font-size: 0.78em; white-space: nowrap; }
 
-        /* ── Want List preview ───────────────────────────────── */
-        .wl-strip {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-        .wl-chip {
-            background: #1a0e00;
-            border: 1px solid #3a2200;
-            border-left: 2px solid var(--amber);
-            padding: 5px 10px;
-            font-size: 0.75em;
-            color: #aaa;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            transition: border-left-color 0.15s, color 0.15s;
-        }
-        .wl-chip:hover { border-left-color: var(--magenta); color: #fff; }
-        .wl-chip img {
-            width: 28px;
-            height: 22px;
-            object-fit: contain;
-            background: #fff;
-        }
-
         /* ── Loading / empty states ──────────────────────────── */
         .stats-loading {
             color: #444;
@@ -408,16 +375,10 @@
         </div>
     </div>
 
-    <!-- Condition + Want List -->
-    <div class="two-col">
-        <div class="stats-section">
-            <div class="section-title">> CONDITION BREAKDOWN</div>
-            <div class="condition-grid" id="condition-chart"><div class="stats-loading">Loading</div></div>
-        </div>
-        <div class="stats-section">
-            <div class="section-title">> WANT LIST <span id="wl-count-label"></span></div>
-            <div class="wl-strip" id="wl-strip"><div class="stats-loading">Loading</div></div>
-        </div>
+    <!-- Condition Breakdown -->
+    <div class="stats-section">
+        <div class="section-title">> CONDITION BREAKDOWN</div>
+        <div class="condition-grid" id="condition-chart"><div class="stats-loading">Loading</div></div>
     </div>
 
     <!-- Recently Added -->
@@ -454,38 +415,31 @@
 
     // ── Main loader ───────────────────────────────────────────
     async function loadStats() {
-        const [colRes, wlRes] = await Promise.all([
-            db.from('lego_collection').select('*').order('created_at', { ascending: false }),
-            db.from('lego_wantlist').select('*').order('created_at', { ascending: false })
-        ]);
+        const colRes = await db.from('lego_collection').select('*').order('created_at', { ascending: false });
 
         const col = colRes.data || [];
-        const wl  = wlRes.data  || [];
 
-        renderKPIs(col, wl);
+        renderKPIs(col);
         renderThemeChart(col);
         renderYearChart(col);
         renderConditionChart(col);
-        renderWantList(wl);
         renderRecentList(col);
     }
 
     // ── KPIs ──────────────────────────────────────────────────
-    function renderKPIs(col, wl) {
+    function renderKPIs(col) {
         const themes     = new Set(col.map(i => i.theme).filter(Boolean)).size;
         const years      = col.map(i => i.year).filter(Boolean);
         const earliest   = years.length ? Math.min(...years) : '—';
         const newest     = years.length ? Math.max(...years) : '—';
         const sealed     = col.filter(i => i.condition === 'Sealed').length;
-        const unconditioned = col.filter(i => !i.condition).length;
 
         const kpis = [
-            { val: fmt(col.length),    label: 'Sets in Collection', color: 'green' },
-            { val: fmt(wl.length),     label: 'On Want List',       color: 'amber' },
-            { val: fmt(themes),        label: 'Unique Themes',      color: 'cyan' },
-            { val: sealed,             label: 'Sealed Sets',        color: 'magenta' },
-            { val: earliest,           label: 'Oldest Year',        color: 'purple' },
-            { val: newest,             label: 'Newest Year',        color: 'green' },
+            { val: fmt(col.length), label: 'Sets in Collection', color: 'green' },
+            { val: fmt(themes),     label: 'Unique Themes',      color: 'cyan' },
+            { val: sealed,          label: 'Sealed Sets',        color: 'magenta' },
+            { val: earliest,        label: 'Oldest Year',        color: 'purple' },
+            { val: newest,          label: 'Newest Year',        color: 'green' },
         ];
 
         document.getElementById('kpi-grid').innerHTML = kpis.map(k => `
@@ -571,23 +525,6 @@
                 </div>
             `;
         }).join('');
-    }
-
-    // ── Want List Strip ───────────────────────────────────────
-    function renderWantList(wl) {
-        document.getElementById('wl-count-label').textContent = `${wl.length} sets`;
-        if (!wl.length) {
-            document.getElementById('wl-strip').innerHTML = '<div class="wl-empty-msg">Want list is empty.</div>';
-            return;
-        }
-        const top = wl.slice(0, 16);
-        document.getElementById('wl-strip').innerHTML = top.map(item => `
-            <div class="wl-chip" title="${item.name} (${item.year})">
-                <img src="${item.img_url || ''}" alt="${item.name}"
-                     onerror="this.style.display='none'">
-                <span>${item.name}</span>
-            </div>
-        `).join('') + (wl.length > 16 ? `<div class="wl-chip wl-overflow-chip">+${wl.length - 16} more</div>` : '');
     }
 
     // ── Recent Adds ───────────────────────────────────────────
