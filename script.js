@@ -6,6 +6,18 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let currentSet = null;
 
+// --- Search pagination state ---
+let searchNextUrl  = null;   // Rebrickable 'next' URL for Load More
+let searchQuery    = '';     // Current name query (for appending more results)
+let searchAllResults = [];   // Accumulated results across pages
+
+// --- Bulk selection state ---
+let bulkMode = false;
+let bulkSelected = new Set(); // Set of item IDs currently selected
+
+// --- Wantlist drag-to-reorder state ---
+let dragSrcId = null; // ID of item being dragged
+
 // --- Collection/Wantlist presence cache (for search page indicators) ---
 // Loaded once on index.html to show "already in collection" badges on search results
 let collectionSetNums = new Set();
@@ -312,35 +324,79 @@ async function searchByName(query, container) {
             return;
         }
 
+        // Store pagination state
+        searchQuery      = query;
+        searchNextUrl    = data.next || null;
+        searchAllResults = data.results;
+
         // Only fetch themes not already in cache
         const themeIds = [...new Set(data.results.map(s => s.theme_id))];
         await Promise.all(themeIds.map(id => fetchTheme(id)));
 
-        renderNameSearchResults(data.results, themeCache, query, data.count);
+        renderNameSearchResults(searchAllResults, themeCache, query, data.count);
     } catch (err) {
         container.innerHTML = `<p style="color:red;">${err.message}</p>`;
     }
 }
 
+async function loadMoreSearchResults() {
+    if (!searchNextUrl) return;
+    const btn = document.getElementById('load-more-btn');
+    if (btn) { btn.textContent = '⟳ LOADING...'; btn.disabled = true; }
+    try {
+        const res = await fetch(searchNextUrl, {
+            headers: { 'Authorization': `key ${REBRICKABLE_API_KEY}` }
+        });
+        if (!res.ok) throw new Error("Load more failed.");
+        const data = await res.json();
+        searchNextUrl = data.next || null;
+        searchAllResults = [...searchAllResults, ...data.results];
+
+        // Fetch any new theme IDs
+        const themeIds = [...new Set(data.results.map(s => s.theme_id))];
+        await Promise.all(themeIds.map(id => fetchTheme(id)));
+
+        // Re-render all accumulated results but preserve existing scroll
+        const container = document.getElementById('result-container');
+        const scrollEl  = container.querySelector('.search-results-list');
+        const scrollTop = scrollEl ? scrollEl.scrollTop : 0;
+        renderNameSearchResults(searchAllResults, themeCache, searchQuery, null /* keep original count */);
+        const newScrollEl = container.querySelector('.search-results-list');
+        if (newScrollEl) newScrollEl.scrollTop = scrollTop;
+    } catch (err) {
+        if (btn) { btn.textContent = 'LOAD MORE'; btn.disabled = false; }
+        showToast('Could not load more results.', 'error');
+    }
+}
+
+// Keep the displayed total count across load-more calls
+let _searchTotalCount = 0;
+
 function renderNameSearchResults(results, themeMap, query, totalCount) {
+    if (totalCount !== null) _searchTotalCount = totalCount;
     const container = document.getElementById('result-container');
     const rows = results.map(set => `
         <li class="search-result-item" onclick="selectSearchResult('${set.set_num}', ${set.theme_id})">
-            <img src="${set.set_img_url || ''}" alt="${set.name}" width="50" style="border:1px solid #333; flex-shrink:0;">
+            <img src="${set.set_img_url || ''}" alt="${set.name}" width="50" style="border:1px solid #333; flex-shrink:0; background:#fff;">
             <div class="search-result-info">
-                <strong>${set.name}</strong>
+                <strong>${escapeHTML(set.name)}</strong>
                 <span class="search-result-meta">${set.set_num} &nbsp;|&nbsp; ${set.year} &nbsp;|&nbsp; ${themeMap[set.theme_id] || 'Unknown'}</span>
                 ${presenceBadge(set.set_num)}
             </div>
         </li>
     `).join('');
 
+    const loadMoreBtn = searchNextUrl
+        ? `<button id="load-more-btn" onclick="loadMoreSearchResults()" class="load-more-btn">⬇ LOAD MORE RESULTS</button>`
+        : '';
+
     container.innerHTML = `
         <div style="text-align:left; margin-bottom:10px; font-size:0.8em; color:#888;">
-            > ${totalCount} result${totalCount !== 1 ? 's' : ''} for "<span style="color:#00ffff;">${escapeHTML(query)}</span>"
-            ${totalCount > 20 ? ' &nbsp;<span style="color:#555;">(showing top 20)</span>' : ''}
+            > ${_searchTotalCount} result${_searchTotalCount !== 1 ? 's' : ''} for "<span style="color:#00ffff;">${escapeHTML(query)}</span>"
+            &nbsp;<span style="color:#555;">(showing ${results.length})</span>
         </div>
         <ul class="search-results-list">${rows}</ul>
+        ${loadMoreBtn}
     `;
 }
 
@@ -483,6 +539,92 @@ function closeLightbox() {
     if (overlay) overlay.classList.remove('active');
 }
 
+// Lightbox for collection/wantlist items (uses item data object, not currentSet)
+async function openItemLightbox(item) {
+    // Close the detail modal if open so lightbox sits on top cleanly
+    document.getElementById('set-modal')?.classList.remove('active');
+
+    let overlay = document.getElementById('lightbox-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'lightbox-overlay';
+        overlay.addEventListener('click', e => { if (e.target === overlay) closeLightbox(); });
+        document.body.appendChild(overlay);
+    }
+
+    overlay.innerHTML = `
+        <div class="lightbox-box" id="lightbox-box">
+            <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+            <div class="lightbox-img-wrap">
+                <img src="${item.img_url || ''}" alt="${escapeHTML(item.name)}" id="lightbox-img">
+            </div>
+            <div class="lightbox-title">${escapeHTML(item.name)}</div>
+            <div class="lightbox-meta-row">
+                <div class="lightbox-stat">
+                    <span class="lightbox-stat-val" id="lightbox-parts-count">…</span>
+                    <span class="lightbox-stat-label">PARTS</span>
+                </div>
+                <div class="lightbox-stat-divider"></div>
+                <div class="lightbox-stat">
+                    <span class="lightbox-stat-val" id="lightbox-minifig-count">…</span>
+                    <span class="lightbox-stat-label">MINIFIGS</span>
+                </div>
+                <div class="lightbox-stat-divider"></div>
+                <div class="lightbox-stat">
+                    <span class="lightbox-stat-val">${item.year ?? '—'}</span>
+                    <span class="lightbox-stat-label">YEAR</span>
+                </div>
+            </div>
+            <div id="lightbox-minifigs" class="lightbox-minifigs"></div>
+            <a href="https://rebrickable.com/sets/${item.set_num}/" target="_blank" rel="noopener" class="lightbox-rebrickable-link">VIEW ON REBRICKABLE ↗</a>
+        </div>
+    `;
+
+    const lbImg = document.getElementById('lightbox-img');
+    if (lbImg) attachImgFallback(lbImg);
+    overlay.classList.add('active');
+
+    // Fetch full set data and minifigs in parallel
+    fetchItemLightboxData(item.set_num);
+}
+
+async function fetchItemLightboxData(setNum) {
+    // Fetch set details (for parts count) and minifigs simultaneously
+    const [setRes, minifigRes] = await Promise.allSettled([
+        fetch(`https://rebrickable.com/api/v3/lego/sets/${setNum}/`, { headers: { 'Authorization': `key ${REBRICKABLE_API_KEY}` } }),
+        fetch(`https://rebrickable.com/api/v3/lego/sets/${setNum}/minifigs/?page_size=50`, { headers: { 'Authorization': `key ${REBRICKABLE_API_KEY}` } })
+    ]);
+
+    const partsEl  = document.getElementById('lightbox-parts-count');
+    const countEl  = document.getElementById('lightbox-minifig-count');
+    const gridEl   = document.getElementById('lightbox-minifigs');
+
+    if (setRes.status === 'fulfilled' && setRes.value.ok) {
+        const setData = await setRes.value.json();
+        if (partsEl) partsEl.textContent = setData.num_parts ?? '—';
+    } else {
+        if (partsEl) partsEl.textContent = '—';
+    }
+
+    if (minifigRes.status === 'fulfilled' && minifigRes.value.ok) {
+        const mfData = await minifigRes.value.json();
+        const count = mfData.count ?? 0;
+        if (countEl) countEl.textContent = count || '0';
+        if (count > 0 && gridEl) {
+            gridEl.innerHTML = mfData.results.map(mf => `
+                <div class="lightbox-minifig">
+                    <img src="${mf.set_img_url || ''}" alt="${mf.set_name}" title="${mf.set_name}">
+                    <div class="lightbox-minifig-name">${escapeHTML(mf.set_name)}</div>
+                    ${mf.quantity > 1 ? `<div class="lightbox-minifig-qty">×${mf.quantity}</div>` : ''}
+                </div>
+            `).join('');
+            gridEl.querySelectorAll('img').forEach(attachImgFallback);
+        }
+    } else {
+        if (countEl) countEl.textContent = '—';
+    }
+}
+
 async function saveCurrentSet() {
     if (!currentSet) return;
 
@@ -545,6 +687,8 @@ async function loadLastAdded() {
         </div>
     `;
 }
+
+
 
 // --- View Mode ---
 let currentView = 'list';
@@ -754,30 +898,54 @@ function renderCollection(data) {
         const li = document.createElement('li');
         li.className = "collection-item collection-item-fadein";
         li.style.animationDelay = `${Math.min(idx * 30, 400)}ms`;
+        if (bulkMode && bulkSelected.has(item.id)) li.classList.add('bulk-selected');
 
         const infoDiv = document.createElement('div');
         infoDiv.className = "collection-item-info";
+
+        // Bulk checkbox (only visible in bulk mode)
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'bulk-checkbox';
+        checkbox.checked = bulkSelected.has(item.id);
+        checkbox.addEventListener('change', () => {
+            if (checkbox.checked) { bulkSelected.add(item.id); li.classList.add('bulk-selected'); }
+            else { bulkSelected.delete(item.id); li.classList.remove('bulk-selected'); }
+            updateBulkToolbar();
+        });
+        if (!bulkMode) checkbox.style.display = 'none';
 
         const img = document.createElement('img');
         img.src = item.img_url;
         img.alt = item.name;
         img.width = currentView === 'grid' ? 100 : 50;
-        img.style.cssText = `margin-right:${currentView === 'grid' ? '0' : '10px'};border:1px solid #0f0;`;
+        img.style.cssText = `margin-right:${currentView === 'grid' ? '0' : '10px'};border:1px solid #0f0;cursor:pointer;`;
         attachImgFallback(img);
+        img.addEventListener('click', e => { e.stopPropagation(); openItemLightbox(item); });
 
         const textDiv = document.createElement('div');
         textDiv.innerHTML = `
             <strong>${item.name}</strong> (${item.year})${conditionBadge(item.condition)}<br>
             <small style="color:#00ffff;">Theme: ${item.theme}</small>`;
 
+        infoDiv.appendChild(checkbox);
         infoDiv.appendChild(img);
         infoDiv.appendChild(textDiv);
-        infoDiv.addEventListener('click', () => showModal(item));
+        infoDiv.addEventListener('click', (e) => {
+            if (e.target === checkbox) return;
+            if (bulkMode) {
+                // In bulk mode, clicking the row toggles selection
+                checkbox.checked = !checkbox.checked;
+                checkbox.dispatchEvent(new Event('change'));
+                return;
+            }
+            showModal(item);
+        });
 
         const removeBtn = document.createElement('button');
         removeBtn.className = "remove-btn";
         removeBtn.textContent = "REMOVE";
-        removeBtn.addEventListener('click', () => deleteSet(item.id));
+        removeBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteSet(item.id); });
 
         li.appendChild(infoDiv);
         li.appendChild(removeBtn);
@@ -800,10 +968,12 @@ function showModal(item) {
 
     document.getElementById('modal-content').innerHTML = `
         <button class="modal-close" onclick="document.getElementById('set-modal').classList.remove('active')">✕</button>
-        <h2>${item.name}</h2>
-        <div class="modal-img-wrap">
+        <h2>${escapeHTML(item.name)}</h2>
+        <div class="modal-img-wrap" onclick="openItemLightbox(${JSON.stringify(item).replace(/"/g, '&quot;')})" style="cursor:pointer;" title="Click to enlarge">
             <img id="modal-set-img" src="${item.img_url}" alt="${item.name}">
-        </div>        <div class="modal-meta">
+            <div style="font-size:0.65em;color:#333;margin-top:4px;letter-spacing:0.5px;">🔍 click to enlarge</div>
+        </div>
+        <div class="modal-meta">
             <div><span class="label">Set #: </span><span class="value">${setNumDisplay}</span></div>
             <div><span class="label">Year: </span><span class="value">${item.year}</span></div>
             <div><span class="label">Theme: </span><span class="value">${item.theme}</span></div>
@@ -852,6 +1022,163 @@ async function deleteSet(id) {
     }
 }
 
+// --- BULK ACTIONS ---
+
+function toggleBulkMode() {
+    bulkMode = !bulkMode;
+    if (!bulkMode) {
+        bulkSelected.clear();
+        hideBulkToolbar();
+    }
+    // Update the bulk toggle button appearance
+    const btn = document.getElementById('bulk-toggle-btn');
+    if (btn) {
+        btn.textContent = bulkMode ? '✕ EXIT SELECT' : '☑ SELECT';
+        btn.classList.toggle('bulk-mode-active', bulkMode);
+    }
+    // Re-render to show/hide checkboxes
+    applyControls();
+    if (bulkMode) showBulkToolbar();
+}
+
+function showBulkToolbar() {
+    let toolbar = document.getElementById('bulk-toolbar');
+    if (!toolbar) {
+        toolbar = document.createElement('div');
+        toolbar.id = 'bulk-toolbar';
+        toolbar.className = 'bulk-toolbar';
+        toolbar.innerHTML = `
+            <span id="bulk-count-label" class="bulk-count-label">0 selected</span>
+            <button onclick="bulkSelectAll()" class="bulk-action-btn">SELECT ALL</button>
+            <button onclick="bulkExportSelected()" class="bulk-action-btn bulk-action-export">⬇ EXPORT</button>
+            <button onclick="bulkConditionPrompt()" class="bulk-action-btn bulk-action-condition">✎ CONDITION</button>
+            <button onclick="bulkRemoveSelected()" class="bulk-action-btn bulk-action-remove">✕ REMOVE</button>
+        `;
+        // Insert after collection-meta-row
+        const metaRow = document.querySelector('.collection-meta-row');
+        if (metaRow && metaRow.nextSibling) {
+            metaRow.parentNode.insertBefore(toolbar, metaRow.nextSibling);
+        } else {
+            document.body.appendChild(toolbar);
+        }
+    }
+    toolbar.classList.add('active');
+    updateBulkToolbar();
+}
+
+function hideBulkToolbar() {
+    const toolbar = document.getElementById('bulk-toolbar');
+    if (toolbar) toolbar.classList.remove('active');
+}
+
+function updateBulkToolbar() {
+    const label = document.getElementById('bulk-count-label');
+    if (label) label.textContent = `${bulkSelected.size} selected`;
+}
+
+function bulkSelectAll() {
+    // Select all currently displayed items
+    const list = document.getElementById('collection-list');
+    if (!list) return;
+    list.querySelectorAll('.bulk-checkbox').forEach(cb => {
+        cb.checked = true;
+        const li = cb.closest('.collection-item');
+        if (li) li.classList.add('bulk-selected');
+        // Find the item id from the data
+        const idMatch = cb.dataset.id ? parseInt(cb.dataset.id) : null;
+    });
+    // Rebuild from rendered items — re-apply controls to sync
+    const checkboxes = list.querySelectorAll('.bulk-checkbox');
+    checkboxes.forEach(cb => { cb.checked = true; });
+    // Sync bulkSelected from current rendered collection (filtered view)
+    const currentFiltered = getCurrentFilteredCollection();
+    currentFiltered.forEach(i => bulkSelected.add(i.id));
+    list.querySelectorAll('.collection-item').forEach(li => li.classList.add('bulk-selected'));
+    updateBulkToolbar();
+}
+
+function getCurrentFilteredCollection() {
+    const filterTheme     = (document.getElementById('filter-theme')?.value || '').toLowerCase();
+    const filterYear      = document.getElementById('filter-year')?.value || '';
+    const filterName      = (document.getElementById('filter-name')?.value || '').toLowerCase().trim();
+    const filterCondition = document.getElementById('filter-condition')?.value || '';
+    return collectionCache.filter(item => {
+        if (filterTheme     && (item.theme || '').toLowerCase() !== filterTheme) return false;
+        if (filterYear      && String(item.year) !== filterYear) return false;
+        if (filterName      && !(item.name || '').toLowerCase().includes(filterName)) return false;
+        if (filterCondition && (item.condition || '') !== filterCondition) return false;
+        return true;
+    });
+}
+
+function bulkExportSelected() {
+    const items = collectionCache.filter(i => bulkSelected.has(i.id));
+    if (!items.length) return showToast('No sets selected.', 'warning');
+    const headers = ['set_num', 'name', 'theme', 'year', 'condition', 'img_url'];
+    const rows = items.map(item => headers.map(h => `"${(item[h] || '').toString().replace(/"/g, '""')}"`).join(','));
+    const csv = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `lego_selected_${items.length}_sets.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(`Exported ${items.length} set${items.length !== 1 ? 's' : ''}.`, 'success');
+}
+
+async function bulkRemoveSelected() {
+    if (!bulkSelected.size) return showToast('No sets selected.', 'warning');
+    if (!confirm(`Remove ${bulkSelected.size} set${bulkSelected.size !== 1 ? 's' : ''} from your collection?`)) return;
+    const ids = [...bulkSelected];
+    // Delete in batches of 10 to avoid URL length issues
+    for (let i = 0; i < ids.length; i += 10) {
+        const batch = ids.slice(i, i + 10);
+        await db.from('lego_collection').delete().in('id', batch);
+    }
+    collectionCache = collectionCache.filter(i => !bulkSelected.has(i.id));
+    showToast(`Removed ${ids.length} set${ids.length !== 1 ? 's' : ''}.`, 'info');
+    bulkSelected.clear();
+    populateFilterDropdowns(collectionCache);
+    applyControls();
+    updateBulkToolbar();
+}
+
+function bulkConditionPrompt() {
+    if (!bulkSelected.size) return showToast('No sets selected.', 'warning');
+    // Show a small inline condition picker in the toolbar
+    let picker = document.getElementById('bulk-condition-picker');
+    if (picker) { picker.remove(); return; }
+    picker = document.createElement('div');
+    picker.id = 'bulk-condition-picker';
+    picker.className = 'bulk-condition-picker';
+    picker.innerHTML = `
+        <span style="color:#888;font-size:0.8em;">Set condition for ${bulkSelected.size} sets:</span>
+        ${conditionSelectHTML('')}
+        <button onclick="bulkApplyCondition()" style="background:#00ff00;color:#000;border:none;padding:6px 12px;font-family:'Courier New',monospace;font-weight:bold;cursor:pointer;margin-top:6px;width:100%;">APPLY</button>
+    `;
+    const toolbar = document.getElementById('bulk-toolbar');
+    toolbar.appendChild(picker);
+}
+
+async function bulkApplyCondition() {
+    const condition = document.getElementById('condition-select')?.value || null;
+    const validConditions = CONDITIONS.map(c => c.value);
+    const cleanCondition = validConditions.includes(condition) ? condition : null;
+    const ids = [...bulkSelected];
+    for (let i = 0; i < ids.length; i += 10) {
+        const batch = ids.slice(i, i + 10);
+        await db.from('lego_collection').update({ condition: cleanCondition }).in('id', batch);
+    }
+    ids.forEach(id => {
+        const item = collectionCache.find(i => i.id === id);
+        if (item) item.condition = cleanCondition;
+    });
+    document.getElementById('bulk-condition-picker')?.remove();
+    showToast(`Updated condition for ${ids.length} set${ids.length !== 1 ? 's' : ''}.`, 'success');
+    applyControls();
+}
+
 // --- WANT LIST ---
 
 async function saveToWantList() {
@@ -888,7 +1215,8 @@ async function loadWantlist() {
     // Fetch view preference and wantlist data in parallel
     const [, { data, error }] = await Promise.all([
         loadViewPreference(),
-        db.from('lego_wantlist').select('*').order('created_at', { ascending: false })
+        db.from('lego_wantlist').select('*').order('sort_order', { ascending: true, nullsFirst: false })
+          .order('created_at', { ascending: false })
     ]);
 
     const btnList = document.getElementById('btn-list');
@@ -918,7 +1246,8 @@ function applyWantlistControls() {
     if (list) list.classList.add('filtering');
 
     const sortSelect = document.getElementById('sort-select');
-    const [sortCol, sortDir] = sortSelect ? sortSelect.value.split('|') : ['created_at', 'desc'];
+    const sortValue = sortSelect ? sortSelect.value : 'sort_order|asc';
+    const [sortCol, sortDir] = sortValue.split('|');
 
     const filterTheme = (document.getElementById('filter-theme')?.value || '').toLowerCase();
     const filterYear  = document.getElementById('filter-year')?.value || '';
@@ -931,15 +1260,22 @@ function applyWantlistControls() {
         return true;
     });
 
-    results.sort((a, b) => {
-        let valA = a[sortCol] ?? '';
-        let valB = b[sortCol] ?? '';
-        if (sortCol === 'year') { valA = Number(valA); valB = Number(valB); }
-        if (sortCol === 'created_at') { valA = new Date(valA); valB = new Date(valB); }
-        if (valA < valB) return sortDir === 'asc' ? -1 : 1;
-        if (valA > valB) return sortDir === 'asc' ? 1 : -1;
-        return 0;
-    });
+    // When using default date-added sort AND items have sort_order, respect drag order
+    const hasSortOrder = wantlistCache.some(i => i.sort_order !== null && i.sort_order !== undefined);
+    if (sortCol === 'created_at' && sortDir === 'desc' && hasSortOrder) {
+        // Keep the order from wantlistCache (which is already sorted by sort_order from DB)
+        // just filter, don't re-sort
+    } else {
+        results.sort((a, b) => {
+            let valA = a[sortCol] ?? '';
+            let valB = b[sortCol] ?? '';
+            if (sortCol === 'year') { valA = Number(valA); valB = Number(valB); }
+            if (sortCol === 'created_at') { valA = new Date(valA); valB = new Date(valB); }
+            if (valA < valB) return sortDir === 'asc' ? -1 : 1;
+            if (valA > valB) return sortDir === 'asc' ? 1 : -1;
+            return 0;
+        });
+    }
 
     renderWantlist(results);
 }
@@ -972,20 +1308,47 @@ function renderWantlist(data) {
         return;
     }
 
+    // Determine if drag mode should be active (only in list view, no active filters)
+    const filterTheme = (document.getElementById('filter-theme')?.value || '');
+    const filterYear  = document.getElementById('filter-year')?.value || '';
+    const filterName  = (document.getElementById('filter-name')?.value || '').trim();
+    const dragEnabled = currentView === 'list' && !filterTheme && !filterYear && !filterName;
+
     data.forEach((item, idx) => {
         const li = document.createElement('li');
         li.className = "collection-item collection-item-fadein";
         li.style.animationDelay = `${Math.min(idx * 30, 400)}ms`;
+        li.dataset.id = item.id;
+
+        if (dragEnabled) {
+            li.draggable = true;
+            li.classList.add('draggable-item');
+            li.addEventListener('dragstart', handleDragStart);
+            li.addEventListener('dragover',  handleDragOver);
+            li.addEventListener('dragleave', handleDragLeave);
+            li.addEventListener('drop',      handleDrop);
+            li.addEventListener('dragend',   handleDragEnd);
+        }
 
         const infoDiv = document.createElement('div');
         infoDiv.className = "collection-item-info";
+
+        // Drag handle (only visible in list view with no filters)
+        if (dragEnabled) {
+            const handle = document.createElement('div');
+            handle.className = 'drag-handle';
+            handle.innerHTML = '⠿';
+            handle.title = 'Drag to reorder';
+            infoDiv.appendChild(handle);
+        }
 
         const img = document.createElement('img');
         img.src = item.img_url;
         img.alt = item.name;
         img.width = currentView === 'grid' ? 100 : 50;
-        img.style.cssText = `margin-right:${currentView === 'grid' ? '0' : '10px'};border:1px solid #ff00ff;`;
+        img.style.cssText = `margin-right:${currentView === 'grid' ? '0' : '10px'};border:1px solid #ff00ff;cursor:pointer;`;
         attachImgFallback(img);
+        img.addEventListener('click', e => { e.stopPropagation(); openItemLightbox(item); });
 
         const textDiv = document.createElement('div');
         textDiv.innerHTML = `
@@ -1016,6 +1379,68 @@ function renderWantlist(data) {
         li.appendChild(btnGroup);
         list.appendChild(li);
     });
+
+    // Show/hide drag hint
+    const hintEl = document.getElementById('drag-hint');
+    if (dragEnabled && data.length > 1) {
+        if (!hintEl) {
+            const hint = document.createElement('div');
+            hint.id = 'drag-hint';
+            hint.className = 'drag-hint';
+            hint.textContent = '⠿ Drag rows to set your priority order';
+            list.before(hint);
+        }
+    } else if (hintEl) {
+        hintEl.remove();
+    }
+}
+
+// --- Wantlist Drag-to-Reorder ---
+function handleDragStart(e) {
+    dragSrcId = parseInt(this.dataset.id);
+    this.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', this.dataset.id);
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    this.classList.add('drag-over');
+}
+
+function handleDragLeave() {
+    this.classList.remove('drag-over');
+}
+
+async function handleDrop(e) {
+    e.preventDefault();
+    this.classList.remove('drag-over');
+    const targetId = parseInt(this.dataset.id);
+    if (!dragSrcId || dragSrcId === targetId) return;
+
+    // Reorder wantlistCache in-memory
+    const srcIdx = wantlistCache.findIndex(i => i.id === dragSrcId);
+    const tgtIdx = wantlistCache.findIndex(i => i.id === targetId);
+    if (srcIdx === -1 || tgtIdx === -1) return;
+
+    const [moved] = wantlistCache.splice(srcIdx, 1);
+    wantlistCache.splice(tgtIdx, 0, moved);
+
+    // Persist sort_order to Supabase for all affected items
+    const updates = wantlistCache.map((item, idx) => ({ id: item.id, sort_order: idx }));
+    // Update in batches (upsert would be ideal but we'll do individual updates for simplicity)
+    for (const u of updates) {
+        await db.from('lego_wantlist').update({ sort_order: u.sort_order }).eq('id', u.id);
+    }
+
+    applyWantlistControls();
+}
+
+function handleDragEnd() {
+    this.classList.remove('dragging');
+    document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    dragSrcId = null;
 }
 
 function moveToCollection(item) {

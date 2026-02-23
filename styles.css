@@ -848,7 +848,159 @@ button:hover {
     }
 }
 
-/* --- Mobile --- */
+
+/* ============================================================
+   NEW FEATURES v8 — Load More, Bulk Actions, Value Bar, Drag
+   ============================================================ */
+
+/* --- Load More Button (search pagination) --- */
+.load-more-btn {
+    display: block;
+    width: 100%;
+    background: none;
+    border: 1px solid #252525;
+    border-top: none;
+    color: #444;
+    padding: 10px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.8em;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    margin-top: 0;
+    text-align: center;
+}
+.load-more-btn:hover {
+    background: #0a1a0a;
+    color: var(--green);
+    border-color: var(--green);
+    box-shadow: 0 0 8px rgba(0,255,0,0.15);
+}
+.load-more-btn:disabled {
+    color: #333;
+    cursor: default;
+    background: none;
+}
+
+/* --- Bulk Actions --- */
+.bulk-toggle-btn {
+    background: none;
+    border: 1px solid #2a2a2a;
+    color: #444;
+    padding: 4px 10px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.75em;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+    white-space: nowrap;
+}
+.bulk-toggle-btn:hover,
+.bulk-toggle-btn.bulk-mode-active {
+    border-color: var(--cyan);
+    color: var(--cyan);
+    background: #001a1a;
+    box-shadow: 0 0 6px rgba(0,255,255,0.15);
+}
+
+.bulk-toolbar {
+    display: none;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    background: #001a1a;
+    border: 1px solid #005555;
+    border-left: 3px solid var(--cyan);
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    font-family: 'Courier New', monospace;
+    flex-direction: column;
+    align-items: flex-start;
+}
+.bulk-toolbar.active {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+.bulk-count-label {
+    font-size: 0.75em;
+    color: var(--cyan);
+    letter-spacing: 1px;
+    margin-right: 4px;
+    white-space: nowrap;
+}
+.bulk-action-btn {
+    background: none;
+    border: 1px solid #2a2a2a;
+    color: #555;
+    padding: 4px 10px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.72em;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+.bulk-action-btn:hover { border-color: var(--cyan); color: var(--cyan); box-shadow: none; }
+.bulk-action-export:hover { border-color: var(--green); color: var(--green); }
+.bulk-action-remove:hover { border-color: var(--red); color: var(--red); }
+.bulk-action-condition:hover { border-color: var(--magenta); color: var(--magenta); }
+
+.bulk-checkbox {
+    width: 14px;
+    height: 14px;
+    margin-right: 8px;
+    flex-shrink: 0;
+    accent-color: var(--cyan);
+    cursor: pointer;
+}
+
+.collection-item.bulk-selected {
+    background: #001a1a !important;
+    border-left-color: var(--cyan) !important;
+    border-color: #005555 !important;
+}
+
+.bulk-condition-picker {
+    width: 100%;
+    padding-top: 8px;
+    border-top: 1px solid #005555;
+    margin-top: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+/* --- Drag-to-Reorder (Wantlist) --- */
+.drag-handle {
+    color: #2a2a2a;
+    font-size: 1.2em;
+    cursor: grab;
+    padding: 0 8px 0 2px;
+    user-select: none;
+    flex-shrink: 0;
+    transition: color 0.15s;
+    line-height: 1;
+}
+.drag-handle:hover { color: #ffaa00; }
+.collection-item.dragging {
+    opacity: 0.4;
+    border-left-color: var(--amber) !important;
+}
+.collection-item.drag-over {
+    border-top: 2px solid var(--amber) !important;
+    background: #1a1000 !important;
+}
+.draggable-item { cursor: default; }
+
+.drag-hint {
+    font-size: 0.68em;
+    color: #2a2a2a;
+    letter-spacing: 1px;
+    padding: 5px 0 3px 4px;
+    text-transform: uppercase;
+}
+
 @media (max-width: 600px) {
     .logo {
         position: static;
