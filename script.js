@@ -1234,10 +1234,10 @@ let wantlistCache = [];
 
 async function loadWantlist() {
     // Fetch view preference and wantlist data in parallel
-    // Try ordering by sort_order first; fall back to created_at if column doesn't exist yet
+    // Order by sort_order (drag order) first, falling back to created_at for unsorted items
     const [, result] = await Promise.all([
         loadViewPreference(),
-        db.from('lego_wantlist').select('*').order('created_at', { ascending: false })
+        db.from('lego_wantlist').select('*').order('sort_order', { ascending: true, nullsFirst: false }).order('created_at', { ascending: false })
     ]);
 
     let { data, error } = result;
