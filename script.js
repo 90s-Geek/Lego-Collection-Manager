@@ -280,17 +280,24 @@ window.onload = () => {
 async function searchLego() {
     const input = document.getElementById('set-input').value.trim();
     if (!input) return showToast("Enter a set number or name!", 'warning');
+
+    // Disable button to prevent duplicate requests
+    const searchBtn = document.querySelector('.search-box button[type="submit"]');
+    if (searchBtn) { searchBtn.disabled = true; searchBtn.textContent = 'SEARCHING...'; }
+
     const container = document.getElementById('result-container');
     container.style.display = 'block';
     container.innerHTML = '<p>Accessing Rebrickable...</p>';
 
-    // Detect if input looks like a set number (digits with optional dash + number)
     const isSetNum = /^\d+(-\d+)?$/.test(input);
-
-    if (isSetNum) {
-        await searchBySetNum(input, container);
-    } else {
-        await searchByName(input, container);
+    try {
+        if (isSetNum) {
+            await searchBySetNum(input, container);
+        } else {
+            await searchByName(input, container);
+        }
+    } finally {
+        if (searchBtn) { searchBtn.disabled = false; searchBtn.textContent = 'SEARCH'; }
     }
 }
 

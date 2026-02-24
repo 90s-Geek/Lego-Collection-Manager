@@ -1012,6 +1012,7 @@ button:hover {
     .sidebar-panel { display: none; }
     body {
         margin: 20px 15px 40px 15px;
+        margin-left: 15px;
         padding: 0;
     }
     .collection-item-info img {
