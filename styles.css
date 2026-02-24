@@ -233,9 +233,69 @@
     border-color: var(--cyan);
 }
 
+/* --- 90s Geek Wallpaper (applied to html so it covers full viewport) --- */
+html {
+    min-height: 100%;
+    background-color: #0a0f0a;
+    background-image:
+        /* Scanline overlay */
+        repeating-linear-gradient(
+            0deg,
+            transparent,
+            transparent 3px,
+            rgba(0, 0, 0, 0.18) 3px,
+            rgba(0, 0, 0, 0.18) 4px
+        ),
+        /* Diagonal green grid — circuit board feel */
+        repeating-linear-gradient(
+            45deg,
+            transparent,
+            transparent 18px,
+            rgba(0, 255, 0, 0.03) 18px,
+            rgba(0, 255, 0, 0.03) 19px
+        ),
+        repeating-linear-gradient(
+            -45deg,
+            transparent,
+            transparent 18px,
+            rgba(0, 255, 0, 0.03) 18px,
+            rgba(0, 255, 0, 0.03) 19px
+        ),
+        /* Horizontal pixel rows */
+        repeating-linear-gradient(
+            180deg,
+            transparent,
+            transparent 31px,
+            rgba(0, 200, 0, 0.04) 31px,
+            rgba(0, 200, 0, 0.04) 32px
+        ),
+        /* Vertical pixel columns */
+        repeating-linear-gradient(
+            90deg,
+            transparent,
+            transparent 31px,
+            rgba(0, 200, 0, 0.04) 31px,
+            rgba(0, 200, 0, 0.04) 32px
+        ),
+        /* Large dot matrix — CRT phosphor glow */
+        radial-gradient(
+            ellipse at 50% 0%,
+            rgba(0, 60, 0, 0.5) 0%,
+            transparent 70%
+        ),
+        /* Base dark gradient — depth */
+        linear-gradient(
+            160deg,
+            #050d05 0%,
+            #0a120a 40%,
+            #080e08 100%
+        );
+    background-attachment: fixed;
+}
+
 /* --- Base --- */
 body {
-    background: #282828;
+    background: transparent;
     color: var(--green);
     font-family: 'Courier New', monospace;
     padding: 20px;
@@ -243,6 +303,24 @@ body {
     margin: 50px 40px 40px calc(var(--sidebar-width) + 60px);
     box-sizing: border-box;
 }
+
+/* Subtle pulsing vignette overlay for CRT warmth */
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(
+        ellipse at 50% 50%,
+        transparent 55%,
+        rgba(0, 0, 0, 0.55) 100%
+    );
+    pointer-events: none;
+    z-index: 0;
+}
+
+
+
+
 
 
 h1 {
@@ -289,8 +367,9 @@ button:hover {
     left: 0;
     width: var(--sidebar-width);
     height: 100vh;
-    border-right: 1px solid #2e2e2e;
-    background: #1a1a1a;
+    border-right: 1px solid #1a2e1a;
+    background: rgba(5, 12, 5, 0.92);
+    backdrop-filter: blur(2px);
     z-index: 99;
     pointer-events: none;
 }
