@@ -458,31 +458,37 @@ function renderSearchResult(set) {
     if (img) attachImgFallback(img);
 }
 
-// --- Image Lightbox ---
-async function openImageLightbox() {
-    if (!currentSet) return;
+// --- Image Lightbox Gallery ---
+// Shared gallery state for the currently open lightbox
+let _lbImages = [];   // [{src, label}]
+let _lbIndex  = 0;
 
-    // Create or reuse lightbox overlay
+function _lbGetOverlay() {
     let overlay = document.getElementById('lightbox-overlay');
     if (!overlay) {
         overlay = document.createElement('div');
         overlay.id = 'lightbox-overlay';
-        overlay.addEventListener('click', e => {
-            if (e.target === overlay) closeLightbox();
-        });
+        overlay.addEventListener('click', e => { if (e.target === overlay) closeLightbox(); });
         document.body.appendChild(overlay);
     }
+    return overlay;
+}
 
-    overlay.innerHTML = `
+function _lbBuildShell(name, setNum, partsVal, yearVal) {
+    return `
         <div class="lightbox-box" id="lightbox-box">
             <button class="lightbox-close" onclick="closeLightbox()">✕</button>
-            <div class="lightbox-img-wrap">
-                <img src="${currentSet.set_img_url || ''}" alt="${currentSet.name}" id="lightbox-img">
+            <div class="lightbox-img-wrap" id="lightbox-img-wrap">
+                <button class="lightbox-img-nav prev" id="lb-prev" onclick="lbNav(-1)" disabled>&#8249;</button>
+                <img src="" alt="${escapeHTML(name)}" id="lightbox-img">
+                <button class="lightbox-img-nav next" id="lb-next" onclick="lbNav(1)" disabled>&#8250;</button>
+                <div class="lightbox-img-counter" id="lb-counter"></div>
             </div>
-            <div class="lightbox-title">${escapeHTML(currentSet.name)}</div>
+            <div class="lightbox-thumbs" id="lightbox-thumbs"></div>
+            <div class="lightbox-title">${escapeHTML(name)}</div>
             <div class="lightbox-meta-row">
                 <div class="lightbox-stat">
-                    <span class="lightbox-stat-val">${currentSet.num_parts ?? '—'}</span>
+                    <span class="lightbox-stat-val" id="lightbox-parts-count">${partsVal}</span>
                     <span class="lightbox-stat-label">PARTS</span>
                 </div>
                 <div class="lightbox-stat-divider"></div>
@@ -492,22 +498,124 @@ async function openImageLightbox() {
                 </div>
                 <div class="lightbox-stat-divider"></div>
                 <div class="lightbox-stat">
-                    <span class="lightbox-stat-val">${currentSet.year ?? '—'}</span>
+                    <span class="lightbox-stat-val">${yearVal ?? '—'}</span>
                     <span class="lightbox-stat-label">YEAR</span>
                 </div>
             </div>
             <div id="lightbox-minifigs" class="lightbox-minifigs"></div>
-            <a href="https://rebrickable.com/sets/${currentSet.set_num}/" target="_blank" rel="noopener" class="lightbox-rebrickable-link">VIEW ON REBRICKABLE ↗</a>
+            <a href="https://rebrickable.com/sets/${setNum}/" target="_blank" rel="noopener" class="lightbox-rebrickable-link">VIEW ON REBRICKABLE ↗</a>
         </div>
     `;
+}
 
-    const lbImg = document.getElementById('lightbox-img');
-    if (lbImg) attachImgFallback(lbImg);
+// Show image at index in the gallery
+function lbShowImage(idx) {
+    if (!_lbImages.length) return;
+    _lbIndex = Math.max(0, Math.min(idx, _lbImages.length - 1));
+    const img = document.getElementById('lightbox-img');
+    const wrap = document.getElementById('lightbox-img-wrap');
+    const counter = document.getElementById('lb-counter');
+    const prev = document.getElementById('lb-prev');
+    const next = document.getElementById('lb-next');
+    if (!img) return;
 
+    wrap && wrap.classList.add('loading');
+    img.onload  = () => wrap && wrap.classList.remove('loading');
+    img.onerror = () => { wrap && wrap.classList.remove('loading'); attachImgFallback(img); };
+    img.src = _lbImages[_lbIndex].src;
+
+    if (counter) counter.textContent = _lbImages.length > 1 ? `${_lbIndex + 1} / ${_lbImages.length}` : '';
+    if (prev) prev.disabled = _lbIndex === 0;
+    if (next) next.disabled = _lbIndex === _lbImages.length - 1;
+
+    // Highlight active thumb
+    document.querySelectorAll('.lightbox-thumb').forEach((t, i) => {
+        t.classList.toggle('active', i === _lbIndex);
+    });
+}
+
+function lbNav(dir) {
+    lbShowImage(_lbIndex + dir);
+}
+
+// Rebuild thumb strip from _lbImages
+function lbRenderThumbs() {
+    const strip = document.getElementById('lightbox-thumbs');
+    if (!strip) return;
+    if (_lbImages.length <= 1) { strip.style.display = 'none'; return; }
+    strip.style.display = 'flex';
+    strip.innerHTML = _lbImages.map((img, i) => `
+        <div class="lightbox-thumb${i === _lbIndex ? ' active' : ''}" onclick="lbShowImage(${i})" title="${escapeHTML(img.label)}">
+            <img src="${img.src}" alt="${escapeHTML(img.label)}" onerror="this.parentElement.style.display='none'">
+            <div class="lightbox-thumb-label">${escapeHTML(img.label)}</div>
+        </div>
+    `).join('');
+    // Update nav buttons
+    const prev = document.getElementById('lb-prev');
+    const next = document.getElementById('lb-next');
+    if (prev) prev.disabled = _lbIndex === 0;
+    if (next) next.disabled = _lbIndex === _lbImages.length - 1;
+}
+
+// Add extra images to gallery after initial load
+function lbAddImages(newImgs) {
+    if (!newImgs.length) return;
+    _lbImages = [..._lbImages, ...newImgs];
+    lbRenderThumbs();
+    // Update counter
+    const counter = document.getElementById('lb-counter');
+    if (counter && _lbImages.length > 1) counter.textContent = `${_lbIndex + 1} / ${_lbImages.length}`;
+    const next = document.getElementById('lb-next');
+    if (next) next.disabled = _lbIndex === _lbImages.length - 1;
+}
+
+async function openImageLightbox() {
+    if (!currentSet) return;
+    const overlay = _lbGetOverlay();
+
+    _lbImages = currentSet.set_img_url ? [{ src: currentSet.set_img_url, label: 'Main' }] : [];
+    _lbIndex  = 0;
+
+    overlay.innerHTML = _lbBuildShell(currentSet.name, currentSet.set_num, currentSet.num_parts ?? '—', currentSet.year);
     overlay.classList.add('active');
 
-    // Fetch minifig data async while lightbox is already visible
+    lbShowImage(0);
+    lbRenderThumbs();
+
+    // Fetch extra images + minifigs in parallel
+    fetchExtraImages(currentSet.set_num);
     fetchMinifigs(currentSet.set_num);
+}
+
+// Fetch alternate/extra images for the lightbox gallery from Rebrickable
+async function fetchExtraImages(setNum) {
+    // Try alternates (MOC builds) — these have images and are linked to the set
+    try {
+        const res = await fetch(`https://rebrickable.com/api/v3/lego/sets/${setNum}/alternates/?page_size=12`, {
+            headers: { 'Authorization': `key ${REBRICKABLE_API_KEY}` }
+        });
+        if (res.ok) {
+            const data = await res.json();
+            const imgs = (data.results || [])
+                .filter(m => m.set_img_url)
+                .map(m => ({ src: m.set_img_url, label: m.name || 'Alt Build' }));
+            if (imgs.length) lbAddImages(imgs);
+        }
+    } catch {}
+
+    // Try Brickset CDN for a box-back image (known URL pattern, silently ignored if 404)
+    const baseNum = setNum.replace(/-1$/, '');
+    const bricksetCandidates = [
+        { src: `https://images.brickset.com/sets/images/${setNum}.jpg`, label: 'Box' },
+        { src: `https://images.brickset.com/sets/AdditionalImages/${baseNum}-1/`, label: 'Box Back' },
+    ];
+    // Test each Brickset URL and only add ones that actually load
+    for (const candidate of bricksetCandidates) {
+        try {
+            const probe = await fetch(candidate.src, { method: 'HEAD' });
+            if (probe.ok) lbAddImages([candidate]);
+        } catch {}
+    }
 }
 
 async function fetchMinifigs(setNum) {
@@ -524,14 +632,15 @@ async function fetchMinifigs(setNum) {
         if (countEl) countEl.textContent = count || '0';
 
         if (count > 0 && gridEl) {
+            const placeholder = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'><rect width='60' height='60' fill='%23111'/><text x='30' y='32' text-anchor='middle' font-family='monospace' font-size='18' fill='%23333'>⊘</text></svg>`;
             gridEl.innerHTML = data.results.map(mf => `
                 <div class="lightbox-minifig">
-                    <img src="${mf.set_img_url || ''}" alt="${mf.set_name}" title="${mf.set_name}">
+                    <img src="${mf.set_img_url || placeholder}" alt="${mf.set_name}" title="${mf.set_name}" style="${mf.set_img_url ? '' : 'background:#111;'}">
                     <div class="lightbox-minifig-name">${escapeHTML(mf.set_name)}</div>
                     ${mf.quantity > 1 ? `<div class="lightbox-minifig-qty">×${mf.quantity}</div>` : ''}
                 </div>
             `).join('');
-            // Attach fallbacks
+            // Attach fallbacks for images that fail mid-load
             gridEl.querySelectorAll('img').forEach(attachImgFallback);
         } else if (gridEl) {
             gridEl.innerHTML = '';
@@ -551,48 +660,21 @@ async function openItemLightbox(item) {
     // Close the detail modal if open so lightbox sits on top cleanly
     document.getElementById('set-modal')?.classList.remove('active');
 
-    let overlay = document.getElementById('lightbox-overlay');
-    if (!overlay) {
-        overlay = document.createElement('div');
-        overlay.id = 'lightbox-overlay';
-        overlay.addEventListener('click', e => { if (e.target === overlay) closeLightbox(); });
-        document.body.appendChild(overlay);
-    }
+    const overlay = _lbGetOverlay();
 
-    overlay.innerHTML = `
-        <div class="lightbox-box" id="lightbox-box">
-            <button class="lightbox-close" onclick="closeLightbox()">✕</button>
-            <div class="lightbox-img-wrap">
-                <img src="${item.img_url || ''}" alt="${escapeHTML(item.name)}" id="lightbox-img">
-            </div>
-            <div class="lightbox-title">${escapeHTML(item.name)}</div>
-            <div class="lightbox-meta-row">
-                <div class="lightbox-stat">
-                    <span class="lightbox-stat-val" id="lightbox-parts-count">…</span>
-                    <span class="lightbox-stat-label">PARTS</span>
-                </div>
-                <div class="lightbox-stat-divider"></div>
-                <div class="lightbox-stat">
-                    <span class="lightbox-stat-val" id="lightbox-minifig-count">…</span>
-                    <span class="lightbox-stat-label">MINIFIGS</span>
-                </div>
-                <div class="lightbox-stat-divider"></div>
-                <div class="lightbox-stat">
-                    <span class="lightbox-stat-val">${item.year ?? '—'}</span>
-                    <span class="lightbox-stat-label">YEAR</span>
-                </div>
-            </div>
-            <div id="lightbox-minifigs" class="lightbox-minifigs"></div>
-            <a href="https://rebrickable.com/sets/${item.set_num}/" target="_blank" rel="noopener" class="lightbox-rebrickable-link">VIEW ON REBRICKABLE ↗</a>
-        </div>
-    `;
+    _lbImages = item.img_url ? [{ src: item.img_url, label: 'Main' }] : [];
+    _lbIndex  = 0;
 
-    const lbImg = document.getElementById('lightbox-img');
-    if (lbImg) attachImgFallback(lbImg);
+    // Parts not stored locally — will be filled by fetchItemLightboxData
+    overlay.innerHTML = _lbBuildShell(item.name, item.set_num, '…', item.year);
     overlay.classList.add('active');
 
-    // Fetch full set data and minifigs in parallel
+    lbShowImage(0);
+    lbRenderThumbs();
+
+    // Fetch set details, extra images, and minifigs all in parallel
     fetchItemLightboxData(item.set_num);
+    fetchExtraImages(item.set_num);
 }
 
 async function fetchItemLightboxData(setNum) {
@@ -602,9 +684,9 @@ async function fetchItemLightboxData(setNum) {
         fetch(`https://rebrickable.com/api/v3/lego/sets/${setNum}/minifigs/?page_size=50`, { headers: { 'Authorization': `key ${REBRICKABLE_API_KEY}` } })
     ]);
 
-    const partsEl  = document.getElementById('lightbox-parts-count');
-    const countEl  = document.getElementById('lightbox-minifig-count');
-    const gridEl   = document.getElementById('lightbox-minifigs');
+    const partsEl = document.getElementById('lightbox-parts-count');
+    const countEl = document.getElementById('lightbox-minifig-count');
+    const gridEl  = document.getElementById('lightbox-minifigs');
 
     if (setRes.status === 'fulfilled' && setRes.value.ok) {
         const setData = await setRes.value.json();
@@ -618,9 +700,10 @@ async function fetchItemLightboxData(setNum) {
         const count = mfData.count ?? 0;
         if (countEl) countEl.textContent = count || '0';
         if (count > 0 && gridEl) {
+            const placeholder = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'><rect width='60' height='60' fill='%23111'/><text x='30' y='32' text-anchor='middle' font-family='monospace' font-size='18' fill='%23333'>⊘</text></svg>`;
             gridEl.innerHTML = mfData.results.map(mf => `
                 <div class="lightbox-minifig">
-                    <img src="${mf.set_img_url || ''}" alt="${mf.set_name}" title="${mf.set_name}">
+                    <img src="${mf.set_img_url || placeholder}" alt="${mf.set_name}" title="${mf.set_name}" style="${mf.set_img_url ? '' : 'background:#111;'}">
                     <div class="lightbox-minifig-name">${escapeHTML(mf.set_name)}</div>
                     ${mf.quantity > 1 ? `<div class="lightbox-minifig-qty">×${mf.quantity}</div>` : ''}
                 </div>
