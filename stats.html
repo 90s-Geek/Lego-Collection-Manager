@@ -65,7 +65,7 @@
         .kpi-card:nth-child(3) { animation-delay: 0.10s; border-top-color: var(--magenta); }
         .kpi-card:nth-child(4) { animation-delay: 0.15s; border-top-color: var(--amber); }
         .kpi-card:nth-child(5) { animation-delay: 0.20s; border-top-color: #aa44ff; }
-        .kpi-card:nth-child(6) { animation-delay: 0.25s; border-top-color: var(--green); }
+        .kpi-card:nth-child(6) { animation-delay: 0.25s; border-top-color: var(--amber); }
 
         .kpi-val {
             font-size: 2em;
@@ -80,6 +80,7 @@
         .kpi-card:nth-child(3) .kpi-val { color: var(--magenta); }
         .kpi-card:nth-child(4) .kpi-val { color: var(--amber); }
         .kpi-card:nth-child(5) .kpi-val { color: #aa44ff; }
+        .kpi-card:nth-child(6) .kpi-val { color: var(--amber); }
 
         .kpi-label {
             font-size: 0.6em;
@@ -402,11 +403,15 @@
 
     // ── Main loader ───────────────────────────────────────────
     async function loadStats() {
-        const colRes = await db.from('lego_collection').select('*').order('created_at', { ascending: false });
+        const [colRes, wlRes] = await Promise.all([
+            db.from('lego_collection').select('*').order('created_at', { ascending: false }),
+            db.from('lego_wantlist').select('*')
+        ]);
 
         const col = colRes.data || [];
+        const wl  = wlRes.data  || [];
 
-        renderKPIs(col);
+        renderKPIs(col, wl);
         renderThemeChart(col);
         renderYearChart(col);
         renderConditionChart(col);
@@ -414,7 +419,7 @@
     }
 
     // ── KPIs ──────────────────────────────────────────────────
-    function renderKPIs(col) {
+    function renderKPIs(col, wl) {
         const themes     = new Set(col.map(i => i.theme).filter(Boolean)).size;
         const years      = col.map(i => i.year).filter(Boolean);
         const earliest   = years.length ? Math.min(...years) : '—';
@@ -427,6 +432,7 @@
             { val: sealed,          label: 'Sealed Sets',        color: 'magenta' },
             { val: earliest,        label: 'Oldest Year',        color: 'purple' },
             { val: newest,          label: 'Newest Year',        color: 'green' },
+            { val: fmt(wl.length),  label: 'On Want List',       color: 'amber' },
         ];
 
         document.getElementById('kpi-grid').innerHTML = kpis.map(k => `
