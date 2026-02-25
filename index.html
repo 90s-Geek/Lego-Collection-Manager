@@ -14,9 +14,80 @@
         .search-box form { display: flex; flex-wrap: wrap; gap: 10px; }
         input { background: #000; color: #00ff00; border: 1px solid #00ff00; padding: 10px; width: 250px; box-sizing: border-box; font-family: 'Courier New', monospace; }
 
-        #last-added-section { margin-top: 10px; margin-bottom: 20px; border: 1px dashed #00ff00; padding: 15px; background: #000; }
-        #last-added-section h3 { margin: 0 0 10px 0; font-size: 0.8em; color: #ff00ff; text-transform: uppercase; }
-        .last-added-card { display: flex; align-items: center; gap: 15px; }
+        /* --- Two-column layout wrapper --- */
+        .index-layout {
+            display: grid;
+            grid-template-columns: 1fr 200px;
+            gap: 16px;
+            align-items: start;
+        }
+        .index-main { min-width: 0; }
+        .index-sidebar {
+            position: sticky;
+            top: 20px;
+        }
+
+        /* --- Recently Added Panel (right sidebar) --- */
+        #last-added-section {
+            border: 1px solid #1a2e1a;
+            background: #0a110a;
+            padding: 12px;
+        }
+        #last-added-section h3 {
+            margin: 0 0 10px 0;
+            font-size: 0.68em;
+            color: #ff00ff;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border-bottom: 1px solid #1a1a1a;
+            padding-bottom: 8px;
+        }
+        .last-added-card { display: flex; flex-direction: column; gap: 0; }
+        .last-added-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 0;
+            border-bottom: 1px solid #0f1a0f;
+            cursor: pointer;
+            transition: background 0.12s;
+        }
+        .last-added-item:last-child { border-bottom: none; }
+        .last-added-item:hover { background: #0d1a0d; }
+        .last-added-item img {
+            width: 44px;
+            height: 36px;
+            object-fit: contain;
+            background: #fff;
+            border: 1px solid #1a2e1a;
+            flex-shrink: 0;
+            transition: border-color 0.12s;
+        }
+        .last-added-item:hover img { border-color: #00ff00; }
+        .last-added-item-text { min-width: 0; }
+        .last-added-item-name {
+            color: #ccc;
+            font-size: 0.72em;
+            font-weight: bold;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.3;
+        }
+        .last-added-item-meta {
+            color: #00ffff;
+            font-size: 0.62em;
+            margin-top: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        @media (max-width: 860px) {
+            .index-layout { grid-template-columns: 1fr; }
+            .index-sidebar { position: static; order: -1; }
+            .last-added-item { padding: 6px 0; }
+        }
 
         /* --- Set of the Day --- */
         #sotd-section {
@@ -173,27 +244,38 @@
     <div id="toast-container"></div>
 
     <h1>LEGO Search</h1>
-    <div class="search-box">
-        <form onsubmit="event.preventDefault(); searchLego();">
-            <input type="text" id="set-input" placeholder="Set # or name (e.g. 6080, Castle)">
-            <button type="submit">SEARCH</button>
-        </form>
-    </div>
 
-    <div id="last-added-section">
-        <h3>> SYSTEM STATUS: LAST SET ADDED</h3>
-        <div id="last-added-container">Initializing...</div>
-    </div>
+    <div class="index-layout">
+        <!-- Main column -->
+        <div class="index-main">
+            <div class="search-box">
+                <form onsubmit="event.preventDefault(); searchLego();">
+                    <input type="text" id="set-input" placeholder="Set # or name (e.g. 6080, Castle)">
+                    <button type="submit">SEARCH</button>
+                </form>
+            </div>
 
-    <!-- Set of the Day -->
-    <div id="sotd-section">
-        <h3 id="sotd-title">> SET OF THE DAY <span id="sotd-date"></span></h3>
-        <div id="sotd-container">
-            <span style="color:#333;font-size:0.8em;letter-spacing:2px;">LOADING...</span>
+            <!-- Set of the Day -->
+            <div id="sotd-section">
+                <h3 id="sotd-title">> SET OF THE DAY <span id="sotd-date"></span></h3>
+                <div id="sotd-container">
+                    <span style="color:#333;font-size:0.8em;letter-spacing:2px;">LOADING...</span>
+                </div>
+            </div>
+
+            <div id="result-container"></div>
+        </div>
+
+        <!-- Right sidebar: Recently Added -->
+        <div class="index-sidebar">
+            <div id="last-added-section">
+                <h3>> RECENTLY ADDED</h3>
+                <div id="last-added-container">
+                    <span style="color:#333;font-size:0.75em;letter-spacing:1px;">LOADING...</span>
+                </div>
+            </div>
         </div>
     </div>
-
-    <div id="result-container"></div>
 
     <nav class="quick-links"></nav>
 

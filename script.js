@@ -761,24 +761,27 @@ async function saveCurrentSet() {
 
 async function loadLastAdded() {
     const container = document.getElementById('last-added-container');
+    if (!container) return;
     const { data, error } = await db.from('lego_collection')
-        .select('*').order('created_at', { ascending: false }).limit(1);
+        .select('*').order('created_at', { ascending: false }).limit(3);
 
     if (error || !data || data.length === 0) {
-        container.innerHTML = "<p style='color:#666;'>No data available.</p>";
+        container.innerHTML = "<p style='color:#333;font-size:0.75em;'>No sets yet.</p>";
         return;
     }
 
-    const item = data[0];
-    container.innerHTML = `
-        <div class="last-added-card">
-            <img src="${item.img_url}" alt="${item.name}" width="60" style="border: 1px solid #2a2a2a; flex-shrink:0;">
-            <div class="last-added-card-text">
-                <div style="color:#fff; font-size:0.9em;">${item.name}</div>
-                <div style="font-size:0.78em; color:var(--cyan); margin-top:3px;">${item.theme} &nbsp;·&nbsp; ${item.year}</div>
+    container.innerHTML = `<div class="last-added-card">
+        ${data.map(item => `
+            <div class="last-added-item" onclick="selectSotdSet('${item.set_num}', 0)" title="${escapeHTML(item.name)}">
+                <img src="${item.img_url || ''}" alt="${escapeHTML(item.name)}"
+                     onerror="this.onerror=null;this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'44\\' height=\\'36\\'><rect width=\\'44\\' height=\\'36\\' fill=\\'%23111\\'/></svg>'">
+                <div class="last-added-item-text">
+                    <div class="last-added-item-name">${escapeHTML(item.name)}</div>
+                    <div class="last-added-item-meta">${item.theme || '—'} · ${item.year || '—'}</div>
+                </div>
             </div>
-        </div>
-    `;
+        `).join('')}
+    </div>`;
 }
 
 
