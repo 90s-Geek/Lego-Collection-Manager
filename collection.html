@@ -113,5 +113,16 @@
     <nav class="quick-links"></nav>
 
     <script src="script.js?v=8"></script>
+
+    <!-- Scroll to top -->
+    <button id="scroll-top-btn" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Back to top">▲</button>
+    <script>
+        (function() {
+            var btn = document.getElementById('scroll-top-btn');
+            window.addEventListener('scroll', function() {
+                btn.classList.toggle('visible', window.scrollY > 400);
+            }, { passive: true });
+        })();
+    </script>
 </body>
 </html>

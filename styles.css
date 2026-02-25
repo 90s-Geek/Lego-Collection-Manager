@@ -1590,3 +1590,39 @@ button:hover {
     .right-panel,
     .recently-added-panel { display: none; }
 }
+
+/* --- Scroll to Top Button --- */
+#scroll-top-btn {
+    position: fixed;
+    bottom: 28px;
+    right: 28px;
+    width: 42px;
+    height: 42px;
+    background: #0a0a0a;
+    color: #444;
+    border: 1px solid #2a2a2a;
+    font-size: 1em;
+    line-height: 1;
+    cursor: pointer;
+    z-index: 500;
+    font-family: 'Courier New', monospace;
+    transition: opacity 0.2s, transform 0.2s, color 0.15s, border-color 0.15s, box-shadow 0.15s;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(10px);
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+#scroll-top-btn.visible {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+}
+#scroll-top-btn:hover {
+    color: var(--green);
+    border-color: var(--green);
+    box-shadow: 0 0 10px rgba(0,255,0,0.25);
+    background: #0a1a0a;
+}
