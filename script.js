@@ -2,6 +2,8 @@
 const REBRICKABLE_API_KEY = '05a143eb0b36a4439e8118910912d050';
 const SUPABASE_URL = 'https://sgmibyooymrocvojchxu.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNnbWlieW9veW1yb2N2b2pjaHh1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1Mzk0OTYsImV4cCI6MjA4NzExNTQ5Nn0.nLXsVr6mvsCQJijHsO2wkw49e0J4JZ-2oiLTpKZGmu0';
+// Free API key from https://brickset.com/api/v3key — used for building instructions lookup
+const BRICKSET_API_KEY = '3-lNuI-wkoZ-HDgqP';
 
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let currentSet = null;
@@ -124,21 +126,6 @@ function renderQuickLinks() {
         QUICK_LINKS.map(link =>
             `<a href="${link.url}" target="_blank" rel="noopener">${link.label}</a>`
         ).join('');
-}
-
-// Highlights the nav link matching the current page
-function highlightActiveNav() {
-    const page = document.body.dataset.page || '';
-    const current = window.location.pathname.split('/').pop() || 'index.html';
-    document.querySelectorAll('.nav a').forEach(a => {
-        const href = a.getAttribute('href') || '';
-        const isActive =
-            (href === 'index.html'     && (current === 'index.html' || current === '')) ||
-            (href === 'collection.html' && current === 'collection.html') ||
-            (href === 'wantlist.html'   && current === 'wantlist.html') ||
-            (href === 'stats.html'      && current === 'stats.html');
-        a.classList.toggle('nav-active', isActive);
-    });
 }
 
 // --- Condition Options (single source of truth) ---
@@ -276,7 +263,6 @@ function debouncedFilter() {
 
 window.onload = () => {
     renderQuickLinks();
-    highlightActiveNav();
     restoreControlsState();
     // Check if the dashboard container exists (index.html)
     if (document.getElementById('last-added-container')) {
@@ -469,9 +455,112 @@ function renderSearchResult(set) {
             <button class="save-btn" onclick="saveCurrentSet()">+ ADD TO COLLECTION</button>
             <button class="wantlist-btn" onclick="saveToWantList()">♥ ADD TO WANT LIST</button>
         </div>
+        <div id="instructions-panel"></div>
+        <button class="instructions-btn" onclick="fetchBuildingInstructions('${escapeHTML(set.set_num)}')">📋 BUILDING INSTRUCTIONS</button>
     `;
     const img = document.getElementById('search-result-img');
     if (img) attachImgFallback(img);
+}
+
+// --- Building Instructions (via Brickset API) ---
+// Fetches PDF instruction links from lego.com via the Brickset getInstructions endpoint.
+// Requires a free Brickset API key: https://brickset.com/api/v3key
+async function fetchBuildingInstructions(setNum) {
+    const panel = document.getElementById('instructions-panel');
+    const btn   = document.querySelector('.instructions-btn');
+    if (!panel) return;
+
+    // Toggle off if already showing
+    if (panel.dataset.loaded === setNum) {
+        panel.innerHTML = '';
+        delete panel.dataset.loaded;
+        if (btn) btn.classList.remove('instructions-btn--active');
+        return;
+    }
+
+    if (BRICKSET_API_KEY === 'YOUR_BRICKSET_API_KEY') {
+        panel.innerHTML = `
+            <div class="instructions-panel">
+                <div class="instructions-panel-title">📋 BUILDING INSTRUCTIONS</div>
+                <div class="instructions-notice">
+                    A free Brickset API key is required.<br>
+                    Get one at <a href="https://brickset.com/api/v3key" target="_blank" rel="noopener" class="instructions-link">brickset.com/api/v3key ↗</a>
+                    then set <code>BRICKSET_API_KEY</code> in script.js.
+                </div>
+            </div>`;
+        panel.dataset.loaded = setNum;
+        return;
+    }
+
+    if (btn) { btn.textContent = '📋 LOADING...'; btn.disabled = true; }
+    panel.innerHTML = `<div class="instructions-panel"><div class="instructions-loading">Fetching instructions</div></div>`;
+
+    // Strip the -1 variant suffix for Brickset — it uses bare set numbers e.g. "6080" not "6080-1"
+    const bricksetNum = setNum.replace(/-\d+$/, '');
+
+    try {
+        const url = `https://brickset.com/api/v3.asmx/getInstructions?apiKey=${encodeURIComponent(BRICKSET_API_KEY)}&setNumber=${encodeURIComponent(bricksetNum)}`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`Brickset API error: ${res.status}`);
+        const data = await res.json();
+
+        const instructions = data.instructions || [];
+
+        if (!instructions.length) {
+            panel.innerHTML = `
+                <div class="instructions-panel">
+                    <div class="instructions-panel-title">📋 BUILDING INSTRUCTIONS</div>
+                    <div class="instructions-empty">
+                        No instructions found for set ${escapeHTML(setNum)}.<br>
+                        <a href="https://www.lego.com/en-us/service/buildinginstructions/search#?text=${encodeURIComponent(bricksetNum)}" target="_blank" rel="noopener" class="instructions-link">Search lego.com ↗</a>
+                    </div>
+                </div>`;
+        } else {
+            // Group by description — multi-book sets have multiple entries
+            const rows = instructions.map((inst, i) => {
+                // Parse a human label from the description field e.g. "BI 3103, 112+4/65+200G, 10270 V29 1/2"
+                // Extract book number hint if present (e.g. "1/2", "2/2")
+                const bookMatch = inst.description?.match(/(\d+\/\d+)\s*$/);
+                const bookLabel = bookMatch ? `Book ${bookMatch[1]}` : `File ${i + 1}`;
+                const desc = inst.description || bookLabel;
+                return `
+                    <a href="${inst.URL}" target="_blank" rel="noopener" class="instructions-item">
+                        <span class="instructions-item-icon">📄</span>
+                        <span class="instructions-item-label">${escapeHTML(desc)}</span>
+                        <span class="instructions-item-dl">⬇ PDF</span>
+                    </a>`;
+            }).join('');
+
+            panel.innerHTML = `
+                <div class="instructions-panel">
+                    <div class="instructions-panel-title">
+                        📋 BUILDING INSTRUCTIONS
+                        <span class="instructions-count">${instructions.length} file${instructions.length !== 1 ? 's' : ''}</span>
+                    </div>
+                    <div class="instructions-list">${rows}</div>
+                    <a href="https://www.lego.com/en-us/service/buildinginstructions/search#?text=${encodeURIComponent(bricksetNum)}"
+                       target="_blank" rel="noopener" class="instructions-lego-link">
+                       View on LEGO.com ↗
+                    </a>
+                </div>`;
+        }
+
+        panel.dataset.loaded = setNum;
+        if (btn) btn.classList.add('instructions-btn--active');
+
+    } catch (err) {
+        panel.innerHTML = `
+            <div class="instructions-panel">
+                <div class="instructions-panel-title">📋 BUILDING INSTRUCTIONS</div>
+                <div class="instructions-empty" style="color:#ff6666;">
+                    Error: ${escapeHTML(err.message)}<br>
+                    <a href="https://www.lego.com/en-us/service/buildinginstructions/search#?text=${encodeURIComponent(bricksetNum)}" target="_blank" rel="noopener" class="instructions-link">Try lego.com ↗</a>
+                </div>
+            </div>`;
+        panel.dataset.loaded = setNum;
+    } finally {
+        if (btn) { btn.textContent = '📋 BUILDING INSTRUCTIONS'; btn.disabled = false; }
+    }
 }
 
 // --- Image Lightbox Gallery ---
