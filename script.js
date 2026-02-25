@@ -1862,37 +1862,58 @@ function exportWantlist() {
 // Uses today's date as a deterministic seed to pick a consistent set all day.
 // Changes at midnight. No extra infrastructure needed — just the Rebrickable API.
 
+// Theme names/keywords that indicate bulk parts, not real sets
+const SOTD_EXCLUDE_THEMES = [
+    'bulk bricks', 'bulk', 'service packs', 'znap', 'scala accessories',
+    'supplemental', 'educational', 'dacta', 'individual elements',
+    'storage', 'quatro', 'duplo accessories', 'soft bricks'
+];
+
+function isSotdExcluded(themeName) {
+    if (!themeName) return false;
+    const lower = themeName.toLowerCase();
+    return SOTD_EXCLUDE_THEMES.some(ex => lower.includes(ex));
+}
+
 async function loadSetOfTheDay() {
     const container = document.getElementById('sotd-container');
     const dateLabel = document.getElementById('sotd-date');
     if (!container) return;
 
-    // Show today's date
     const now = new Date();
     if (dateLabel) {
         dateLabel.textContent = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase();
     }
 
-    // Deterministic page offset from day-of-year so it changes daily but is stable all day
     const startOfYear = new Date(now.getFullYear(), 0, 0);
     const dayOfYear = Math.floor((now - startOfYear) / 86400000);
 
-    // Cycle through pages — min_parts=20 ensures sets with actual content
-    const totalPages = 800;
+    // Fetch a page of 10 candidates so we can filter out bulk/parts packs
+    // and still land on a real set. Use day-of-year to pick the page,
+    // then use day % 10 to pick which candidate within the page.
+    const totalPages = 200;
     const page = (dayOfYear % totalPages) + 1;
+    const candidateIdx = dayOfYear % 10;
 
     try {
         const res = await fetch(
-            `https://rebrickable.com/api/v3/lego/sets/?page=${page}&page_size=1&min_parts=20&ordering=set_num`,
+            `https://rebrickable.com/api/v3/lego/sets/?page=${page}&page_size=10&min_parts=50&ordering=set_num`,
             { headers: { 'Authorization': `key ${REBRICKABLE_API_KEY}` } }
         );
         if (!res.ok) throw new Error('API error');
         const data = await res.json();
-        const set = data.results?.[0];
-        if (!set) throw new Error('No set returned');
+        const candidates = data.results || [];
+        if (!candidates.length) throw new Error('No sets returned');
 
-        const themeName = await fetchTheme(set.theme_id);
-        renderSetOfTheDay({ ...set, theme_name: themeName });
+        // Resolve all theme names in parallel
+        await Promise.all([...new Set(candidates.map(s => s.theme_id))].map(id => fetchTheme(id)));
+
+        // Filter out bulk/parts themes, then pick by index (wrap around if needed)
+        const valid = candidates.filter(s => !isSotdExcluded(themeCache[s.theme_id]));
+        if (!valid.length) throw new Error('No valid sets after filtering');
+
+        const set = valid[candidateIdx % valid.length];
+        renderSetOfTheDay({ ...set, theme_name: themeCache[set.theme_id] || 'Unknown' });
     } catch (err) {
         if (container) container.innerHTML = `<span style="color:#333;font-size:0.8em;">Could not load set of the day.</span>`;
     }
