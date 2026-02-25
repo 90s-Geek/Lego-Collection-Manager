@@ -1596,20 +1596,22 @@ button:hover {
     position: fixed;
     bottom: 28px;
     right: 28px;
-    width: 42px;
-    height: 42px;
-    background: #0a0a0a;
-    color: #444;
-    border: 1px solid #2a2a2a;
-    font-size: 1em;
+    width: 50px;
+    height: 50px;
+    background: #001a00;
+    color: var(--green);
+    border: 2px solid var(--green);
+    font-size: 1.2em;
+    font-weight: bold;
     line-height: 1;
     cursor: pointer;
     z-index: 500;
     font-family: 'Courier New', monospace;
-    transition: opacity 0.2s, transform 0.2s, color 0.15s, border-color 0.15s, box-shadow 0.15s;
+    box-shadow: 0 0 14px rgba(0,255,0,0.35), inset 0 0 8px rgba(0,255,0,0.08);
+    transition: opacity 0.22s, transform 0.22s, box-shadow 0.15s, background 0.15s;
     opacity: 0;
     pointer-events: none;
-    transform: translateY(10px);
+    transform: translateY(14px);
     padding: 0;
     display: flex;
     align-items: center;
@@ -1621,8 +1623,7 @@ button:hover {
     transform: translateY(0);
 }
 #scroll-top-btn:hover {
-    color: var(--green);
-    border-color: var(--green);
-    box-shadow: 0 0 10px rgba(0,255,0,0.25);
-    background: #0a1a0a;
+    background: #003300;
+    box-shadow: 0 0 22px rgba(0,255,0,0.6), inset 0 0 12px rgba(0,255,0,0.12);
+    color: #fff;
 }
