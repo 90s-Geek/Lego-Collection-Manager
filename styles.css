@@ -1499,12 +1499,12 @@ button:hover {
     color: #333;
 }
 
-/* --- Right Panel (Recently Added) — mirrors left sidebar layout --- */
+/* --- Right Panel (Recently Added) --- */
 .right-panel {
     position: fixed;
     top: 0;
     right: 0;
-    width: 220px;
+    width: 200px;
     height: 100vh;
     border-left: 1px solid #1a2e1a;
     background: rgba(5, 12, 5, 0.92);
@@ -1515,53 +1515,59 @@ button:hover {
 .recently-added-panel {
     position: fixed;
     top: 30px;
-    right: 12px;
-    width: 196px;
+    right: 10px;
+    width: 180px;
     z-index: 100;
     display: flex;
     flex-direction: column;
+    gap: 8px;
 }
 .recently-added-title {
     font-size: 0.58em;
     color: var(--magenta);
     text-transform: uppercase;
     letter-spacing: 2px;
-    margin-bottom: 8px;
+    margin-bottom: 2px;
     padding-left: 2px;
 }
 .recently-added-item {
     display: flex;
-    align-items: center;
-    gap: 10px;
-    background: #1e1e1e;
+    flex-direction: column;
+    align-items: stretch;
+    background: #1a1a1a;
     border: 1px solid #222;
-    border-bottom: none;
-    padding: 10px 9px;
     cursor: pointer;
     transition: background 0.12s, border-color 0.12s, box-shadow 0.12s;
     box-sizing: border-box;
     width: 100%;
+    overflow: hidden;
 }
-.recently-added-item:last-child { border-bottom: 1px solid #222; }
 .recently-added-item:hover {
     background: #0a1a0a;
     border-color: var(--green);
-    box-shadow: 0 0 6px rgba(0,255,0,0.15);
+    box-shadow: 0 0 8px rgba(0,255,0,0.2);
     position: relative;
     z-index: 1;
 }
 .recently-added-item img {
-    width: 58px;
-    height: 48px;
+    width: 100%;
+    height: 110px;
     object-fit: contain;
     background: #fff;
+    display: block;
     flex-shrink: 0;
+    transition: opacity 0.12s;
 }
-.recently-added-item-text { min-width: 0; flex: 1; }
+.recently-added-item:hover img { opacity: 0.9; }
+.recently-added-item-text {
+    padding: 6px 8px 7px;
+    border-top: 1px solid #222;
+    background: #111;
+}
 .recently-added-item-name {
     color: var(--green);
     font-family: 'Courier New', monospace;
-    font-size: 0.7em;
+    font-size: 0.68em;
     font-weight: bold;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -1574,13 +1580,13 @@ button:hover {
 .recently-added-item-meta {
     color: #555;
     font-family: 'Courier New', monospace;
-    font-size: 0.62em;
+    font-size: 0.6em;
     margin-top: 3px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
-@media (max-width: 1100px) {
+@media (max-width: 1200px) {
     .right-panel,
     .recently-added-panel { display: none; }
 }
