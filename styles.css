@@ -53,29 +53,26 @@
     display: block;
     width: 100%;
     margin-top: 6px;
-    background: none;
-    border: 1px solid #1e3a1e;
-    color: #336633;
+    background: var(--green);
+    border: none;
+    color: #000;
     padding: 9px;
     font-family: 'Courier New', monospace;
     font-size: 0.82em;
     font-weight: bold;
     letter-spacing: 1px;
     cursor: pointer;
-    transition: background 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s;
+    transition: background 0.15s, box-shadow 0.15s;
     text-align: center;
     box-sizing: border-box;
 }
 .instructions-btn:hover {
-    background: #0a1a0a;
-    border-color: var(--green);
-    color: var(--green);
-    box-shadow: 0 0 8px rgba(0,255,0,0.15);
+    background: #00cc00;
+    box-shadow: 0 0 8px rgba(0,255,0,0.35);
 }
 .instructions-btn--active {
-    border-color: var(--green);
-    color: var(--green);
-    background: #0a1a0a;
+    background: #00cc00;
+    box-shadow: 0 0 8px rgba(0,255,0,0.35);
 }
 
 .instructions-panel {
