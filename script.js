@@ -766,22 +766,20 @@ async function loadLastAdded() {
         .select('*').order('created_at', { ascending: false }).limit(3);
 
     if (error || !data || data.length === 0) {
-        container.innerHTML = "<p style='color:#333;font-size:0.75em;'>No sets yet.</p>";
+        container.innerHTML = "<div style='color:#333;font-size:0.65em;padding:4px 2px;'>No sets yet.</div>";
         return;
     }
 
-    container.innerHTML = `<div class="last-added-card">
-        ${data.map(item => `
-            <div class="last-added-item" onclick="selectSotdSet('${item.set_num}', 0)" title="${escapeHTML(item.name)}">
-                <img src="${item.img_url || ''}" alt="${escapeHTML(item.name)}"
-                     onerror="this.onerror=null;this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'44\\' height=\\'36\\'><rect width=\\'44\\' height=\\'36\\' fill=\\'%23111\\'/></svg>'">
-                <div class="last-added-item-text">
-                    <div class="last-added-item-name">${escapeHTML(item.name)}</div>
-                    <div class="last-added-item-meta">${item.theme || '—'} · ${item.year || '—'}</div>
-                </div>
+    container.innerHTML = data.map(item => `
+        <div class="recently-added-item" onclick="selectSotdSet('${item.set_num}', 0)" title="${escapeHTML(item.name)}">
+            <img src="${item.img_url || ''}" alt="${escapeHTML(item.name)}"
+                 onerror="this.onerror=null;this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'36\' height=\'28\'><rect width=\'36\' height=\'28\' fill=\'%23111\'/></svg>'">
+            <div class="recently-added-item-text">
+                <div class="recently-added-item-name">${escapeHTML(item.name)}</div>
+                <div class="recently-added-item-meta">${item.theme || '-'} · ${item.year || '-'}</div>
             </div>
-        `).join('')}
-    </div>`;
+        </div>
+    `).join('');
 }
 
 

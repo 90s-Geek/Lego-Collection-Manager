@@ -7,206 +7,31 @@
     <link rel="icon" type="image/webp" href="images/90s_Geek_logo.webp">
     <title>90s Geek LEGO Search</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="styles.css?v=8">
+    <link rel="stylesheet" href="styles.css?v=9">
     <style>
-        /* --- Search page specific --- */
         .search-box { background: #222; padding: 20px; border: 1px solid #00ff00; margin-bottom: 20px; }
         .search-box form { display: flex; flex-wrap: wrap; gap: 10px; }
         input { background: #000; color: #00ff00; border: 1px solid #00ff00; padding: 10px; width: 250px; box-sizing: border-box; font-family: 'Courier New', monospace; }
 
-        /* --- Two-column layout wrapper --- */
-        .index-layout {
-            display: grid;
-            grid-template-columns: 1fr 200px;
-            gap: 16px;
-            align-items: start;
-        }
-        .index-main { min-width: 0; }
-        .index-sidebar {
-            position: sticky;
-            top: 20px;
-        }
-
-        /* --- Recently Added Panel (right sidebar) --- */
-        #last-added-section {
-            border: 1px solid #1a2e1a;
-            background: #0a110a;
-            padding: 12px;
-        }
-        #last-added-section h3 {
-            margin: 0 0 10px 0;
-            font-size: 0.68em;
-            color: #ff00ff;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            border-bottom: 1px solid #1a1a1a;
-            padding-bottom: 8px;
-        }
-        .last-added-card { display: flex; flex-direction: column; gap: 0; }
-        .last-added-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 7px 0;
-            border-bottom: 1px solid #0f1a0f;
-            cursor: pointer;
-            transition: background 0.12s;
-        }
-        .last-added-item:last-child { border-bottom: none; }
-        .last-added-item:hover { background: #0d1a0d; }
-        .last-added-item img {
-            width: 44px;
-            height: 36px;
-            object-fit: contain;
-            background: #fff;
-            border: 1px solid #1a2e1a;
-            flex-shrink: 0;
-            transition: border-color 0.12s;
-        }
-        .last-added-item:hover img { border-color: #00ff00; }
-        .last-added-item-text { min-width: 0; }
-        .last-added-item-name {
-            color: #ccc;
-            font-size: 0.72em;
-            font-weight: bold;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            line-height: 1.3;
-        }
-        .last-added-item-meta {
-            color: #00ffff;
-            font-size: 0.62em;
-            margin-top: 2px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        @media (max-width: 860px) {
-            .index-layout { grid-template-columns: 1fr; }
-            .index-sidebar { position: static; order: -1; }
-            .last-added-item { padding: 6px 0; }
-        }
-
-        /* --- Set of the Day --- */
-        #sotd-section {
-            margin-bottom: 20px;
-            border: 1px solid #1a1a00;
-            background: #0d0d00;
-            padding: 15px;
-            position: relative;
-            overflow: hidden;
-        }
-        #sotd-section::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, #ffaa00 30%, #ffdd00 50%, #ffaa00 70%, transparent);
-            animation: sotdScan 3s ease-in-out infinite;
-        }
-        @keyframes sotdScan {
-            0%, 100% { opacity: 0.4; }
-            50% { opacity: 1; }
-        }
-        #sotd-title {
-            margin: 0 0 12px 0;
-            font-size: 0.8em;
-            color: #ffaa00;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        #sotd-date {
-            color: #443300;
-            font-size: 0.85em;
-            letter-spacing: 1px;
-        }
-        .sotd-card {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            cursor: pointer;
-            transition: background 0.15s;
-            padding: 4px;
-            border-radius: 0;
-        }
+        #sotd-section { margin-bottom: 20px; border: 1px solid #1a1a00; background: #0d0d00; padding: 15px; position: relative; overflow: hidden; }
+        #sotd-section::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, #ffaa00 30%, #ffdd00 50%, #ffaa00 70%, transparent); animation: sotdScan 3s ease-in-out infinite; }
+        @keyframes sotdScan { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+        #sotd-title { margin: 0 0 12px 0; font-size: 0.8em; color: #ffaa00; text-transform: uppercase; letter-spacing: 2px; display: flex; align-items: center; gap: 10px; }
+        #sotd-date { color: #443300; font-size: 0.85em; letter-spacing: 1px; }
+        .sotd-card { display: flex; align-items: center; gap: 16px; cursor: pointer; transition: background 0.15s; padding: 4px; }
         .sotd-card:hover { background: #111100; }
-        .sotd-img-wrap {
-            position: relative;
-            flex-shrink: 0;
-        }
-        .sotd-img-wrap img {
-            width: 90px;
-            height: 72px;
-            object-fit: contain;
-            background: #fff;
-            border: 1px solid #443300;
-            display: block;
-            transition: border-color 0.15s;
-        }
+        .sotd-img-wrap { position: relative; flex-shrink: 0; }
+        .sotd-img-wrap img { width: 90px; height: 72px; object-fit: contain; background: #fff; border: 1px solid #443300; display: block; transition: border-color 0.15s; }
         .sotd-card:hover .sotd-img-wrap img { border-color: #ffaa00; }
-        .sotd-dice {
-            position: absolute;
-            top: -6px;
-            right: -6px;
-            background: #ffaa00;
-            color: #000;
-            font-size: 0.55em;
-            font-weight: bold;
-            letter-spacing: 0.5px;
-            padding: 2px 5px;
-            line-height: 1.4;
-        }
+        .sotd-dice { position: absolute; top: -6px; right: -6px; background: #ffaa00; color: #000; font-size: 0.55em; font-weight: bold; letter-spacing: 0.5px; padding: 2px 5px; line-height: 1.4; }
         .sotd-info { flex: 1; min-width: 0; }
-        .sotd-name {
-            color: #fff;
-            font-size: 0.92em;
-            font-weight: bold;
-            margin-bottom: 4px;
-            word-break: break-word;
-        }
-        .sotd-meta {
-            color: #ffaa00;
-            font-size: 0.75em;
-            letter-spacing: 1px;
-            margin-bottom: 6px;
-        }
-        .sotd-parts {
-            color: #443300;
-            font-size: 0.7em;
-            letter-spacing: 1px;
-        }
-        .sotd-actions {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-            flex-shrink: 0;
-        }
-        .sotd-btn {
-            background: none;
-            border: 1px solid #443300;
-            color: #886600;
-            padding: 5px 10px;
-            font-family: 'Courier New', monospace;
-            font-size: 0.7em;
-            letter-spacing: 0.5px;
-            cursor: pointer;
-            white-space: nowrap;
-            transition: all 0.15s;
-        }
-        .sotd-btn:hover {
-            border-color: #ffaa00;
-            color: #ffaa00;
-            box-shadow: 0 0 6px rgba(255,170,0,0.2);
-        }
-        .sotd-btn.primary {
-            border-color: #886600;
-            color: #ffaa00;
-        }
+        .sotd-name { color: #fff; font-size: 0.92em; font-weight: bold; margin-bottom: 4px; word-break: break-word; }
+        .sotd-meta { color: #ffaa00; font-size: 0.75em; letter-spacing: 1px; margin-bottom: 6px; }
+        .sotd-parts { color: #443300; font-size: 0.7em; letter-spacing: 1px; }
+        .sotd-actions { display: flex; flex-direction: column; gap: 5px; flex-shrink: 0; }
+        .sotd-btn { background: none; border: 1px solid #443300; color: #886600; padding: 5px 10px; font-family: 'Courier New', monospace; font-size: 0.7em; letter-spacing: 0.5px; cursor: pointer; white-space: nowrap; transition: all 0.15s; }
+        .sotd-btn:hover { border-color: #ffaa00; color: #ffaa00; box-shadow: 0 0 6px rgba(255,170,0,0.2); }
+        .sotd-btn.primary { border-color: #886600; color: #ffaa00; }
 
         #result-container { display: none; background: #222; border: 2px solid #fff; padding: 20px; text-align: center; }
         #result-container h2 { color: #00ffff; margin-top: 0; text-transform: uppercase; }
@@ -216,7 +41,6 @@
         .save-btn:hover { background: #d400d4; }
         .wantlist-btn { background: #ffaa00; color: #000; margin-top: 15px; padding: 12px; flex: 1; min-width: 140px; font-weight: bold; }
         .wantlist-btn:hover { background: #cc8800; }
-
         .search-results-list { list-style: none; padding: 0; margin: 0; text-align: left; max-height: 480px; overflow-y: auto; }
         .search-result-item { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-bottom: 1px solid #222; cursor: pointer; transition: background 0.1s; }
         .search-result-item:hover { background: #1a2e1a; }
@@ -233,8 +57,22 @@
     </style>
 </head>
 <body>
+    <!-- Left sidebar background -->
     <div class="sidebar-panel"></div>
+
+    <!-- Right sidebar background (mirrors left) -->
+    <div class="right-panel"></div>
+
+    <!-- Logo -->
     <a href="index.html"><img src="images/90s_Geek_logo.webp" alt="90s Geek Logo" class="logo"></a>
+
+    <!-- Recently Added — fixed right panel -->
+    <div class="recently-added-panel">
+        <span class="recently-added-title">RECENTLY ADDED</span>
+        <div id="last-added-container">
+            <div style="color:#333;font-size:0.65em;letter-spacing:1px;padding:4px 2px;">LOADING...</div>
+        </div>
+    </div>
 
     <div class="nav">
         <a href="collection.html">COLLECTION</a>
@@ -245,40 +83,25 @@
 
     <h1>LEGO Search</h1>
 
-    <div class="index-layout">
-        <!-- Main column -->
-        <div class="index-main">
-            <div class="search-box">
-                <form onsubmit="event.preventDefault(); searchLego();">
-                    <input type="text" id="set-input" placeholder="Set # or name (e.g. 6080, Castle)">
-                    <button type="submit">SEARCH</button>
-                </form>
-            </div>
+    <div class="search-box">
+        <form onsubmit="event.preventDefault(); searchLego();">
+            <input type="text" id="set-input" placeholder="Set # or name (e.g. 6080, Castle)">
+            <button type="submit">SEARCH</button>
+        </form>
+    </div>
 
-            <!-- Set of the Day -->
-            <div id="sotd-section">
-                <h3 id="sotd-title">> SET OF THE DAY <span id="sotd-date"></span></h3>
-                <div id="sotd-container">
-                    <span style="color:#333;font-size:0.8em;letter-spacing:2px;">LOADING...</span>
-                </div>
-            </div>
-
-            <div id="result-container"></div>
-        </div>
-
-        <!-- Right sidebar: Recently Added -->
-        <div class="index-sidebar">
-            <div id="last-added-section">
-                <h3>> RECENTLY ADDED</h3>
-                <div id="last-added-container">
-                    <span style="color:#333;font-size:0.75em;letter-spacing:1px;">LOADING...</span>
-                </div>
-            </div>
+    <!-- Set of the Day -->
+    <div id="sotd-section">
+        <h3 id="sotd-title">> SET OF THE DAY <span id="sotd-date"></span></h3>
+        <div id="sotd-container">
+            <span style="color:#333;font-size:0.8em;letter-spacing:2px;">LOADING...</span>
         </div>
     </div>
 
+    <div id="result-container"></div>
+
     <nav class="quick-links"></nav>
 
-    <script src="script.js?v=8"></script>
+    <script src="script.js?v=9"></script>
 </body>
 </html>
