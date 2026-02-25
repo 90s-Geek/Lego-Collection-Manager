@@ -98,69 +98,12 @@ function createToastContainer() {
     return el;
 }
 
-// --- Custom Confirmation Modal ---
-// Replaces native confirm() with a themed, non-blocking modal.
-// onConfirm is called only if the user clicks the confirm button.
-function showConfirmModal(messageHTML, onConfirm) {
-    // Remove any existing confirm modal
-    document.getElementById('confirm-modal')?.remove();
-
-    const overlay = document.createElement('div');
-    overlay.id = 'confirm-modal';
-    overlay.style.cssText = `
-        position:fixed;inset:0;background:rgba(0,0,0,0.88);
-        z-index:2000;display:flex;align-items:center;justify-content:center;
-        padding:20px;box-sizing:border-box;backdrop-filter:blur(2px);
-    `;
-
-    const box = document.createElement('div');
-    box.style.cssText = `
-        background:#1a0000;border:1px solid #553333;border-top:3px solid #ff4444;
-        padding:28px 24px 20px;max-width:360px;width:100%;
-        font-family:'Courier New',monospace;color:#ccc;font-size:0.9em;
-        text-align:center;animation:modalIn 0.17s ease both;
-        box-shadow:0 0 40px rgba(255,50,50,0.15);box-sizing:border-box;
-    `;
-    box.innerHTML = `
-        <div style="color:#ff4444;font-size:0.65em;letter-spacing:3px;text-transform:uppercase;margin-bottom:14px;">⚠ CONFIRM ACTION</div>
-        <div style="margin-bottom:20px;line-height:1.6;">${messageHTML}</div>
-        <div style="display:flex;gap:8px;">
-            <button id="confirm-modal-yes" style="flex:1;background:#ff3333;color:#fff;border:none;padding:10px;font-family:'Courier New',monospace;font-weight:bold;cursor:pointer;letter-spacing:1px;">✓ CONFIRM</button>
-            <button id="confirm-modal-no" style="flex:1;background:none;border:1px solid #333;color:#888;padding:10px;font-family:'Courier New',monospace;cursor:pointer;">CANCEL</button>
-        </div>
-    `;
-
-    overlay.appendChild(box);
-    document.body.appendChild(overlay);
-
-    const close = () => overlay.remove();
-    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
-    document.getElementById('confirm-modal-no').addEventListener('click', close);
-    document.getElementById('confirm-modal-yes').addEventListener('click', () => {
-        close();
-        onConfirm();
-    });
-
-    // Escape key closes confirm modal
-    const escHandler = e => {
-        if (e.key === 'Escape') { close(); document.removeEventListener('keydown', escHandler); }
-    };
-    document.addEventListener('keydown', escHandler);
-}
-
-// --- Keyboard: Escape closes modals/lightbox; arrows navigate lightbox ---
+// --- Escape key closes any open modal or lightbox ---
 document.addEventListener('keydown', e => {
-    // Arrow keys — only when lightbox is open
-    const lbOverlay = document.getElementById('lightbox-overlay');
-    if (lbOverlay && lbOverlay.classList.contains('active')) {
-        if (e.key === 'ArrowLeft')  { e.preventDefault(); lbNav(-1); return; }
-        if (e.key === 'ArrowRight') { e.preventDefault(); lbNav(1);  return; }
-    }
     if (e.key !== 'Escape') return;
     // Don't close import modal if actively importing
     const importModal = document.getElementById('import-modal');
     if (importModal && importModal.dataset.importing) return;
-    document.getElementById('confirm-modal')?.remove();
     closeLightbox();
     document.querySelectorAll('.modal-overlay.active').forEach(m => m.classList.remove('active'));
 });
@@ -183,6 +126,21 @@ function renderQuickLinks() {
         ).join('');
 }
 
+// Highlights the nav link matching the current page
+function highlightActiveNav() {
+    const page = document.body.dataset.page || '';
+    const current = window.location.pathname.split('/').pop() || 'index.html';
+    document.querySelectorAll('.nav a').forEach(a => {
+        const href = a.getAttribute('href') || '';
+        const isActive =
+            (href === 'index.html'     && (current === 'index.html' || current === '')) ||
+            (href === 'collection.html' && current === 'collection.html') ||
+            (href === 'wantlist.html'   && current === 'wantlist.html') ||
+            (href === 'stats.html'      && current === 'stats.html');
+        a.classList.toggle('nav-active', isActive);
+    });
+}
+
 // --- Condition Options (single source of truth) ---
 const CONDITIONS = [
     { value: 'Sealed',     label: 'Sealed',     color: '#00ff00' },
@@ -194,7 +152,7 @@ const CONDITIONS = [
 function conditionBadge(condition) {
     const c = CONDITIONS.find(x => x.value === condition);
     if (!c) return '';
-    return `<span class="condition-badge" style="border-color:${c.color};color:${c.color};">${c.label}</span>`;
+    return `<span style="font-size:0.7em;border:1px solid ${c.color};color:${c.color};padding:1px 6px;margin-left:6px;vertical-align:middle;">${c.label}</span>`;
 }
 
 // --- Image Fallback ---
@@ -318,6 +276,7 @@ function debouncedFilter() {
 
 window.onload = () => {
     renderQuickLinks();
+    highlightActiveNav();
     restoreControlsState();
     // Check if the dashboard container exists (index.html)
     if (document.getElementById('last-added-container')) {
@@ -377,8 +336,6 @@ async function searchBySetNum(input, container) {
 
 async function searchByName(query, container) {
     try {
-        // Reset total count so stale count from previous search never shows
-        _searchTotalCount = 0;
         const res = await fetch(`https://rebrickable.com/api/v3/lego/sets/?search=${encodeURIComponent(query)}&page_size=20&ordering=-year`, {
             headers: { 'Authorization': `key ${REBRICKABLE_API_KEY}` }
         });
@@ -828,10 +785,10 @@ async function loadLastAdded() {
     const item = data[0];
     container.innerHTML = `
         <div class="last-added-card">
-            <img src="${item.img_url}" alt="${item.name}" width="60" class="last-added-img">
+            <img src="${item.img_url}" alt="${item.name}" width="60" style="border: 1px solid #2a2a2a; flex-shrink:0;">
             <div class="last-added-card-text">
-                <div class="last-added-card-text-name">${item.name}</div>
-                <div class="last-added-card-text-meta">${item.theme} &nbsp;·&nbsp; ${item.year}</div>
+                <div style="color:#fff; font-size:0.9em;">${item.name}</div>
+                <div style="font-size:0.78em; color:var(--cyan); margin-top:3px;">${item.theme} &nbsp;·&nbsp; ${item.year}</div>
             </div>
         </div>
     `;
@@ -1118,9 +1075,9 @@ function showModal(item) {
     document.getElementById('modal-content').innerHTML = `
         <button class="modal-close" onclick="document.getElementById('set-modal').classList.remove('active')">✕</button>
         <h2>${escapeHTML(item.name)}</h2>
-        <div class="modal-img-wrap modal-img-wrap--clickable" data-item-id="${item.id}" data-item-source="${isWantlistPage() ? 'wantlist' : 'collection'}" title="Click to enlarge">
+        <div class="modal-img-wrap" onclick="openItemLightbox(${JSON.stringify(item).replace(/"/g, '&quot;')})" style="cursor:pointer;" title="Click to enlarge">
             <img id="modal-set-img" src="${item.img_url}" alt="${item.name}">
-            <div class="modal-enlarge-hint">🔍 click to enlarge</div>
+            <div style="font-size:0.65em;color:#333;margin-top:4px;letter-spacing:0.5px;">🔍 click to enlarge</div>
         </div>
         <div class="modal-meta">
             <div><span class="label">Set #: </span><span class="value">${setNumDisplay}</span></div>
@@ -1132,11 +1089,6 @@ function showModal(item) {
     `;
     const img = document.getElementById('modal-set-img');
     if (img) attachImgFallback(img);
-    // Wire up the image click via event listener to avoid JSON.stringify in onclick attribute
-    const imgWrap = document.querySelector('#modal-content .modal-img-wrap--clickable');
-    if (imgWrap) {
-        imgWrap.addEventListener('click', () => openItemLightbox(item));
-    }
     document.getElementById('set-modal').classList.add('active');
 }
 
@@ -1165,23 +1117,18 @@ function closeModal(e) {
 }
 
 async function deleteSet(id) {
-    if (document.body.dataset.page === 'wantlist') return; // Safety guard
-    const item = collectionCache.find(i => i.id === id);
-    const name = item ? item.name : 'this set';
-    showConfirmModal(
-        `Remove <strong style="color:#fff;">${escapeHTML(name)}</strong> from your collection?`,
-        async () => {
-            const { error } = await db.from('lego_collection').delete().eq('id', id);
-            if (error) {
-                showToast("Error removing set: " + error.message, 'error');
-            } else {
-                showToast("Set removed from collection.", 'info');
-                collectionCache = collectionCache.filter(i => i.id !== id);
-                populateFilterDropdowns(collectionCache);
-                applyControls();
-            }
-        }
-    );
+    if (document.body.dataset.page === 'wantlist') return; // Safety guard — never delete from collection on wantlist page
+    if (!confirm("Remove this set from your collection?")) return;
+    const { error } = await db.from('lego_collection').delete().eq('id', id);
+    if (error) {
+        showToast("Error removing set: " + error.message, 'error');
+    } else {
+        showToast("Set removed from collection.", 'info');
+        // Update cache in-place — no need to re-fetch all data from Supabase
+        collectionCache = collectionCache.filter(i => i.id !== id);
+        populateFilterDropdowns(collectionCache);
+        applyControls();
+    }
 }
 
 // --- BULK ACTIONS ---
@@ -1239,15 +1186,23 @@ function updateBulkToolbar() {
 }
 
 function bulkSelectAll() {
+    // Select all currently displayed items
+    const list = document.getElementById('collection-list');
+    if (!list) return;
+    list.querySelectorAll('.bulk-checkbox').forEach(cb => {
+        cb.checked = true;
+        const li = cb.closest('.collection-item');
+        if (li) li.classList.add('bulk-selected');
+        // Find the item id from the data
+        const idMatch = cb.dataset.id ? parseInt(cb.dataset.id) : null;
+    });
+    // Rebuild from rendered items — re-apply controls to sync
+    const checkboxes = list.querySelectorAll('.bulk-checkbox');
+    checkboxes.forEach(cb => { cb.checked = true; });
     // Sync bulkSelected from current rendered collection (filtered view)
     const currentFiltered = getCurrentFilteredCollection();
     currentFiltered.forEach(i => bulkSelected.add(i.id));
-    // Update checkboxes and highlight rows in the DOM
-    const list = document.getElementById('collection-list');
-    if (list) {
-        list.querySelectorAll('.bulk-checkbox').forEach(cb => { cb.checked = true; });
-        list.querySelectorAll('.collection-item').forEach(li => li.classList.add('bulk-selected'));
-    }
+    list.querySelectorAll('.collection-item').forEach(li => li.classList.add('bulk-selected'));
     updateBulkToolbar();
 }
 
@@ -1283,24 +1238,19 @@ function bulkExportSelected() {
 
 async function bulkRemoveSelected() {
     if (!bulkSelected.size) return showToast('No sets selected.', 'warning');
-    const count = bulkSelected.size;
-    showConfirmModal(
-        `Remove <strong style="color:#fff;">${count}</strong> set${count !== 1 ? 's' : ''} from your collection?`,
-        async () => {
-            const ids = [...bulkSelected];
-            // Delete in batches of 10 to avoid URL length issues
-            for (let i = 0; i < ids.length; i += 10) {
-                const batch = ids.slice(i, i + 10);
-                await db.from('lego_collection').delete().in('id', batch);
-            }
-            collectionCache = collectionCache.filter(i => !bulkSelected.has(i.id));
-            showToast(`Removed ${ids.length} set${ids.length !== 1 ? 's' : ''}.`, 'info');
-            bulkSelected.clear();
-            populateFilterDropdowns(collectionCache);
-            applyControls();
-            updateBulkToolbar();
-        }
-    );
+    if (!confirm(`Remove ${bulkSelected.size} set${bulkSelected.size !== 1 ? 's' : ''} from your collection?`)) return;
+    const ids = [...bulkSelected];
+    // Delete in batches of 10 to avoid URL length issues
+    for (let i = 0; i < ids.length; i += 10) {
+        const batch = ids.slice(i, i + 10);
+        await db.from('lego_collection').delete().in('id', batch);
+    }
+    collectionCache = collectionCache.filter(i => !bulkSelected.has(i.id));
+    showToast(`Removed ${ids.length} set${ids.length !== 1 ? 's' : ''}.`, 'info');
+    bulkSelected.clear();
+    populateFilterDropdowns(collectionCache);
+    applyControls();
+    updateBulkToolbar();
 }
 
 function bulkConditionPrompt() {
@@ -1387,9 +1337,9 @@ async function loadWantlist() {
 
     let { data, error } = result;
 
-    // If sort_order column doesn't exist yet, fall back to created_at ordering
+    // If there's an error, just try a plain fetch with no ordering
     if (error) {
-        const fallback = await db.from('lego_wantlist').select('*').order('created_at', { ascending: false });
+        const fallback = await db.from('lego_wantlist').select('*').order('sort_order', { ascending: true, nullsFirst: false });
         data  = fallback.data;
         error = fallback.error;
     }
@@ -1697,22 +1647,17 @@ async function confirmMoveToCollection(wantlistId) {
 }
 
 async function deleteFromWantlist(id) {
-    const item = wantlistCache.find(i => i.id === id);
-    const name = item ? item.name : 'this set';
-    showConfirmModal(
-        `Remove <strong style="color:#fff;">${escapeHTML(name)}</strong> from your want list?`,
-        async () => {
-            const { error } = await db.from('lego_wantlist').delete().eq('id', id);
-            if (error) {
-                showToast("Error removing set: " + error.message, 'error');
-            } else {
-                showToast("Set removed from want list.", 'info');
-                wantlistCache = wantlistCache.filter(i => i.id !== id);
-                populateFilterDropdowns(wantlistCache);
-                applyWantlistControls();
-            }
-        }
-    );
+    if (!confirm("Remove this set from your want list?")) return;
+    const { error } = await db.from('lego_wantlist').delete().eq('id', id);
+    if (error) {
+        showToast("Error removing set: " + error.message, 'error');
+    } else {
+        showToast("Set removed from want list.", 'info');
+        // Update cache in-place — no need to re-fetch all data from Supabase
+        wantlistCache = wantlistCache.filter(i => i.id !== id);
+        populateFilterDropdowns(wantlistCache);
+        applyWantlistControls();
+    }
 }
 
 // --- CSV IMPORT ---

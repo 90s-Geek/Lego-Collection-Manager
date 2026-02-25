@@ -494,22 +494,37 @@ button:hover {
     gap: 8px;
 }
 .nav a {
-    color: #bbb;
+    color: #777;
     text-decoration: none;
-    border: 1px solid #444;
-    padding: 8px 16px;
+    border: 1px solid #2a2a2a;
+    border-bottom: 3px solid #1a1a1a;
+    padding: 11px 16px;
     width: 200px;
     text-align: center;
     box-sizing: border-box;
     font-size: 0.85em;
-    letter-spacing: 1px;
-    transition: border-color 0.15s, color 0.15s, background 0.15s, box-shadow 0.15s;
+    font-weight: bold;
+    letter-spacing: 2px;
+    background: #111;
+    transition: border-color 0.15s, color 0.15s, background 0.15s, box-shadow 0.15s, border-bottom-color 0.15s;
+    position: relative;
 }
 .nav a:hover {
     background: #0a1a0a;
-    border-color: var(--green);
+    border-color: #2e4a2e;
+    border-bottom-color: var(--green);
     color: var(--green);
-    box-shadow: 0 0 8px rgba(0,255,0,0.2);
+    box-shadow: 0 0 14px rgba(0,255,0,0.18), inset 0 0 12px rgba(0,255,0,0.04);
+    text-shadow: 0 0 10px rgba(0,255,0,0.4);
+}
+/* Active page indicator — applied via JS or page-specific style */
+.nav a.nav-active {
+    color: var(--green);
+    border-color: #2e4a2e;
+    border-bottom-color: var(--green);
+    background: #0a1a0a;
+    box-shadow: 0 0 14px rgba(0,255,0,0.15), inset 0 0 10px rgba(0,255,0,0.04);
+    text-shadow: 0 0 10px rgba(0,255,0,0.35);
 }
 
 /* --- Quick Links Sidebar --- */
