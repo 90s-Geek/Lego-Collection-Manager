@@ -1927,22 +1927,40 @@ function renderSetOfTheDay(set) {
     const inWantlist   = wantlistSetNums.has(set.set_num);
 
     container.innerHTML = `
-        <div class="sotd-card" onclick="selectSotdSet('${set.set_num}', ${set.theme_id})">
-            <div class="sotd-img-wrap">
+        <div class="sotd-body">
+            <div class="sotd-img-panel" onclick="selectSotdSet('${set.set_num}', ${set.theme_id})" title="Click to view set details">
                 <img id="sotd-img" src="${set.set_img_url || ''}" alt="${escapeHTML(set.name)}">
-                <span class="sotd-dice">⚄ DAILY</span>
+                <span class="sotd-badge">⚄ DAILY PICK</span>
+                <span class="sotd-enlarge-hint">🔍 click to view</span>
             </div>
-            <div class="sotd-info">
-                <div class="sotd-name">${escapeHTML(set.name)}</div>
-                <div class="sotd-meta">${set.set_num} &nbsp;·&nbsp; ${set.year} &nbsp;·&nbsp; ${escapeHTML(set.theme_name)}</div>
-                <div class="sotd-parts">${set.num_parts} PARTS</div>
-                ${inCollection ? `<span class="presence-badge presence-badge--collection" style="margin-top:4px;display:inline-block;">✓ IN COLLECTION</span>` : ''}
-                ${inWantlist   ? `<span class="presence-badge presence-badge--wantlist" style="margin-top:4px;display:inline-block;">♥ IN WANT LIST</span>` : ''}
-            </div>
-            <div class="sotd-actions" onclick="event.stopPropagation()">
-                <button class="sotd-btn primary" onclick="selectSotdSet('${set.set_num}', ${set.theme_id})">VIEW SET</button>
-                <button class="sotd-btn" onclick="sotdSaveToCollection('${set.set_num}', ${set.theme_id})">+ COLLECT</button>
-                <button class="sotd-btn" onclick="sotdSaveToWantlist('${set.set_num}', ${set.theme_id})">♥ WANT</button>
+            <div class="sotd-info-panel">
+                <div>
+                    <div class="sotd-name">${escapeHTML(set.name)}</div>
+                    <div class="sotd-meta-row">
+                        <div class="sotd-meta-item">
+                            <span class="sotd-meta-val">${set.year || '—'}</span>
+                            <span class="sotd-meta-lbl">Year</span>
+                        </div>
+                        <div class="sotd-meta-divider"></div>
+                        <div class="sotd-meta-item">
+                            <span class="sotd-meta-val">${set.num_parts ?? '—'}</span>
+                            <span class="sotd-meta-lbl">Parts</span>
+                        </div>
+                        <div class="sotd-meta-divider"></div>
+                        <div class="sotd-meta-item">
+                            <span class="sotd-meta-val" style="font-size:0.78em;">${escapeHTML(set.theme_name)}</span>
+                            <span class="sotd-meta-lbl">Theme</span>
+                        </div>
+                    </div>
+                    <div style="font-size:0.72em;color:#443300;letter-spacing:1px;margin-bottom:14px;">${set.set_num}</div>
+                    ${inCollection ? '<span class="presence-badge presence-badge--collection" style="margin-right:6px;">✓ IN COLLECTION</span>' : ''}
+                    ${inWantlist   ? '<span class="presence-badge presence-badge--wantlist">♥ IN WANT LIST</span>' : ''}
+                </div>
+                <div class="sotd-actions" style="margin-top:14px;">
+                    <button class="sotd-btn primary" onclick="selectSotdSet('${set.set_num}', ${set.theme_id})">VIEW SET</button>
+                    <button class="sotd-btn" onclick="sotdSaveToCollection('${set.set_num}', ${set.theme_id})">+ COLLECT</button>
+                    <button class="sotd-btn" onclick="sotdSaveToWantlist('${set.set_num}', ${set.theme_id})">♥ WANT</button>
+                </div>
             </div>
         </div>
     `;
