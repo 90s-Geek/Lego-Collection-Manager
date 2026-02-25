@@ -863,23 +863,22 @@ async function saveCurrentSet() {
 
 async function loadLastAdded() {
     const container = document.getElementById('last-added-container');
+    if (!container) return;
     const { data, error } = await db.from('lego_collection')
         .select('*').order('created_at', { ascending: false }).limit(1);
 
     if (error || !data || data.length === 0) {
-        container.innerHTML = "<p style='color:#666;'>No data available.</p>";
+        container.innerHTML = `<div style='color:#333;font-size:0.7em;letter-spacing:1px;'>No sets yet.</div>`;
         return;
     }
 
     const item = data[0];
+    // Panel layout: image full-width on top, text below
     container.innerHTML = `
-        <div class="last-added-card">
-            <img src="${item.img_url}" alt="${item.name}" width="60" style="border: 1px solid #2a2a2a; flex-shrink:0;">
-            <div class="last-added-card-text">
-                <div style="color:#fff; font-size:0.9em;">${item.name}</div>
-                <div style="font-size:0.78em; color:var(--cyan); margin-top:3px;">${item.theme} &nbsp;·&nbsp; ${item.year}</div>
-            </div>
-        </div>
+        <img src="${item.img_url}" alt="${item.name}"
+             onerror="this.style.display='none'">
+        <div class="last-added-panel-name">${item.name}</div>
+        <div class="last-added-panel-meta">${item.theme || '—'}<br>${item.year || '—'}</div>
     `;
 }
 

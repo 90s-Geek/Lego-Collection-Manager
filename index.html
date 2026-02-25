@@ -10,23 +10,9 @@
     <link rel="stylesheet" href="styles.css?v=8">
     <style>
         /* --- Search page specific --- */
-
-        /* Two-column top row: search left, last-added right */
-        .search-top-row {
-            display: grid;
-            grid-template-columns: 1fr 280px;
-            gap: 16px;
-            align-items: stretch;
-            margin-bottom: 20px;
-        }
-
-        .search-box { background: #222; padding: 20px; border: 1px solid #00ff00; box-sizing: border-box; }
+        .search-box { background: #222; padding: 20px; border: 1px solid #00ff00; margin-bottom: 20px; }
         .search-box form { display: flex; flex-wrap: wrap; gap: 10px; }
         input { background: #000; color: #00ff00; border: 1px solid #00ff00; padding: 10px; width: 250px; box-sizing: border-box; font-family: 'Courier New', monospace; }
-
-        #last-added-section { border: 1px dashed #00ff00; padding: 15px; background: #000; box-sizing: border-box; }
-        #last-added-section h3 { margin: 0 0 10px 0; font-size: 0.8em; color: #ff00ff; text-transform: uppercase; }
-        .last-added-card { display: flex; align-items: center; gap: 12px; }
 
         #result-container { display: none; background: #222; border: 2px solid #fff; padding: 20px; text-align: center; }
         #result-container h2 { color: #00ffff; margin-top: 0; text-transform: uppercase; }
@@ -45,17 +31,26 @@
         .search-result-info strong { color: #fff; font-size: 0.9em; word-break: break-word; }
         .search-result-meta { color: #666; font-size: 0.75em; }
 
-        @media (max-width: 700px) {
-            .search-top-row { grid-template-columns: 1fr; }
+        @media (max-width: 600px) {
             input { width: 100%; }
             button[type="submit"] { width: 100%; }
             .search-box form { flex-direction: column; }
+            .right-panel, .last-added-panel { display: none; }
         }
     </style>
 </head>
 <body>
     <div class="sidebar-panel"></div>
+    <div class="right-panel"></div>
     <a href="index.html"><img src="images/90s_Geek_logo.webp" alt="90s Geek Logo" class="logo"></a>
+
+    <!-- Right panel: Last Set Added -->
+    <div class="last-added-panel">
+        <span class="last-added-panel-title">LAST ADDED</span>
+        <div id="last-added-container" class="last-added-panel-card">
+            <div style="color:#333;font-size:0.7em;letter-spacing:1px;">Loading...</div>
+        </div>
+    </div>
 
     <div class="nav">
         <a href="collection.html">COLLECTION</a>
@@ -65,19 +60,11 @@
     <div id="toast-container"></div>
 
     <h1>LEGO Search</h1>
-
-    <div class="search-top-row">
-        <div class="search-box">
-            <form onsubmit="event.preventDefault(); searchLego();">
-                <input type="text" id="set-input" placeholder="Set # or name (e.g. 6080, Castle)">
-                <button type="submit">SEARCH</button>
-            </form>
-        </div>
-
-        <div id="last-added-section">
-            <h3>> SYSTEM STATUS: LAST SET ADDED</h3>
-            <div id="last-added-container">Initializing...</div>
-        </div>
+    <div class="search-box">
+        <form onsubmit="event.preventDefault(); searchLego();">
+            <input type="text" id="set-input" placeholder="Set # or name (e.g. 6080, Castle)">
+            <button type="submit">SEARCH</button>
+        </form>
     </div>
 
     <div id="result-container"></div>
