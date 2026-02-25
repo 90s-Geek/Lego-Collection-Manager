@@ -14,6 +14,129 @@
         .search-box form { display: flex; flex-wrap: wrap; gap: 10px; }
         input { background: #000; color: #00ff00; border: 1px solid #00ff00; padding: 10px; width: 250px; box-sizing: border-box; font-family: 'Courier New', monospace; }
 
+        #last-added-section { margin-top: 10px; margin-bottom: 20px; border: 1px dashed #00ff00; padding: 15px; background: #000; }
+        #last-added-section h3 { margin: 0 0 10px 0; font-size: 0.8em; color: #ff00ff; text-transform: uppercase; }
+        .last-added-card { display: flex; align-items: center; gap: 15px; }
+
+        /* --- Set of the Day --- */
+        #sotd-section {
+            margin-bottom: 20px;
+            border: 1px solid #1a1a00;
+            background: #0d0d00;
+            padding: 15px;
+            position: relative;
+            overflow: hidden;
+        }
+        #sotd-section::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #ffaa00 30%, #ffdd00 50%, #ffaa00 70%, transparent);
+            animation: sotdScan 3s ease-in-out infinite;
+        }
+        @keyframes sotdScan {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 1; }
+        }
+        #sotd-title {
+            margin: 0 0 12px 0;
+            font-size: 0.8em;
+            color: #ffaa00;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        #sotd-date {
+            color: #443300;
+            font-size: 0.85em;
+            letter-spacing: 1px;
+        }
+        .sotd-card {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            cursor: pointer;
+            transition: background 0.15s;
+            padding: 4px;
+            border-radius: 0;
+        }
+        .sotd-card:hover { background: #111100; }
+        .sotd-img-wrap {
+            position: relative;
+            flex-shrink: 0;
+        }
+        .sotd-img-wrap img {
+            width: 90px;
+            height: 72px;
+            object-fit: contain;
+            background: #fff;
+            border: 1px solid #443300;
+            display: block;
+            transition: border-color 0.15s;
+        }
+        .sotd-card:hover .sotd-img-wrap img { border-color: #ffaa00; }
+        .sotd-dice {
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            background: #ffaa00;
+            color: #000;
+            font-size: 0.55em;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            padding: 2px 5px;
+            line-height: 1.4;
+        }
+        .sotd-info { flex: 1; min-width: 0; }
+        .sotd-name {
+            color: #fff;
+            font-size: 0.92em;
+            font-weight: bold;
+            margin-bottom: 4px;
+            word-break: break-word;
+        }
+        .sotd-meta {
+            color: #ffaa00;
+            font-size: 0.75em;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+        }
+        .sotd-parts {
+            color: #443300;
+            font-size: 0.7em;
+            letter-spacing: 1px;
+        }
+        .sotd-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            flex-shrink: 0;
+        }
+        .sotd-btn {
+            background: none;
+            border: 1px solid #443300;
+            color: #886600;
+            padding: 5px 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.7em;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.15s;
+        }
+        .sotd-btn:hover {
+            border-color: #ffaa00;
+            color: #ffaa00;
+            box-shadow: 0 0 6px rgba(255,170,0,0.2);
+        }
+        .sotd-btn.primary {
+            border-color: #886600;
+            color: #ffaa00;
+        }
+
         #result-container { display: none; background: #222; border: 2px solid #fff; padding: 20px; text-align: center; }
         #result-container h2 { color: #00ffff; margin-top: 0; text-transform: uppercase; }
         .set-meta { color: #fff; margin-bottom: 15px; font-size: 0.95em; border-bottom: 1px solid #444; padding-bottom: 10px; }
@@ -35,22 +158,12 @@
             input { width: 100%; }
             button[type="submit"] { width: 100%; }
             .search-box form { flex-direction: column; }
-            .right-panel, .last-added-panel { display: none; }
         }
     </style>
 </head>
 <body>
     <div class="sidebar-panel"></div>
-    <div class="right-panel"></div>
     <a href="index.html"><img src="images/90s_Geek_logo.webp" alt="90s Geek Logo" class="logo"></a>
-
-    <!-- Right panel: Last Set Added -->
-    <div class="last-added-panel">
-        <span class="last-added-panel-title">RECENTLY ADDED</span>
-        <div id="last-added-container">
-            <div style="color:#333;font-size:0.7em;letter-spacing:1px;">Loading...</div>
-        </div>
-    </div>
 
     <div class="nav">
         <a href="collection.html">COLLECTION</a>
@@ -65,6 +178,19 @@
             <input type="text" id="set-input" placeholder="Set # or name (e.g. 6080, Castle)">
             <button type="submit">SEARCH</button>
         </form>
+    </div>
+
+    <div id="last-added-section">
+        <h3>> SYSTEM STATUS: LAST SET ADDED</h3>
+        <div id="last-added-container">Initializing...</div>
+    </div>
+
+    <!-- Set of the Day -->
+    <div id="sotd-section">
+        <h3 id="sotd-title">> SET OF THE DAY <span id="sotd-date"></span></h3>
+        <div id="sotd-container">
+            <span style="color:#333;font-size:0.8em;letter-spacing:2px;">LOADING...</span>
+        </div>
     </div>
 
     <div id="result-container"></div>

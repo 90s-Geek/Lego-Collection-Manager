@@ -2,8 +2,6 @@
 const REBRICKABLE_API_KEY = '05a143eb0b36a4439e8118910912d050';
 const SUPABASE_URL = 'https://sgmibyooymrocvojchxu.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNnbWlieW9veW1yb2N2b2pjaHh1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1Mzk0OTYsImV4cCI6MjA4NzExNTQ5Nn0.nLXsVr6mvsCQJijHsO2wkw49e0J4JZ-2oiLTpKZGmu0';
-// Free API key from https://brickset.com/api/v3key — used for building instructions lookup
-const BRICKSET_API_KEY = '3-lNuI-wkoZ-HDgqP';
 
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let currentSet = null;
@@ -267,7 +265,10 @@ window.onload = () => {
     // Check if the dashboard container exists (index.html)
     if (document.getElementById('last-added-container')) {
         loadLastAdded();
-        loadPresenceCache(); // Pre-load so search badges are ready
+        loadPresenceCache().then(() => {
+            // Load SOTD after presence cache is ready so badges show correctly
+            loadSetOfTheDay();
+        });
     }
     // Check if the full list exists (collection.html)
     if (document.getElementById('collection-list')) {
@@ -451,116 +452,13 @@ function renderSearchResult(set) {
         </div>
         <p>Parts: ${set.num_parts}</p>
         ${conditionSelectHTML()}
-        <div class="set-result-actions">
+        <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-top:10px;">
             <button class="save-btn" onclick="saveCurrentSet()">+ ADD TO COLLECTION</button>
             <button class="wantlist-btn" onclick="saveToWantList()">♥ ADD TO WANT LIST</button>
         </div>
-        <button class="instructions-btn" onclick="fetchBuildingInstructions('${escapeHTML(set.set_num)}')">📋 BUILDING INSTRUCTIONS</button>
-        <div id="instructions-panel"></div>
     `;
     const img = document.getElementById('search-result-img');
     if (img) attachImgFallback(img);
-}
-
-// --- Building Instructions (via Brickset API) ---
-// Fetches PDF instruction links from lego.com via the Brickset getInstructions endpoint.
-// Requires a free Brickset API key: https://brickset.com/api/v3key
-async function fetchBuildingInstructions(setNum) {
-    const panel = document.getElementById('instructions-panel');
-    const btn   = document.querySelector('.instructions-btn');
-    if (!panel) return;
-
-    // Toggle off if already showing
-    if (panel.dataset.loaded === setNum) {
-        panel.innerHTML = '';
-        delete panel.dataset.loaded;
-        if (btn) btn.classList.remove('instructions-btn--active');
-        return;
-    }
-
-    if (BRICKSET_API_KEY === 'YOUR_BRICKSET_API_KEY') {
-        panel.innerHTML = `
-            <div class="instructions-panel">
-                <div class="instructions-panel-title">📋 BUILDING INSTRUCTIONS</div>
-                <div class="instructions-notice">
-                    A free Brickset API key is required.<br>
-                    Get one at <a href="https://brickset.com/api/v3key" target="_blank" rel="noopener" class="instructions-link">brickset.com/api/v3key ↗</a>
-                    then set <code>BRICKSET_API_KEY</code> in script.js.
-                </div>
-            </div>`;
-        panel.dataset.loaded = setNum;
-        return;
-    }
-
-    if (btn) { btn.textContent = '📋 LOADING...'; btn.disabled = true; }
-    panel.innerHTML = `<div class="instructions-panel"><div class="instructions-loading">Fetching instructions</div></div>`;
-
-    // Strip the -1 variant suffix for Brickset — it uses bare set numbers e.g. "6080" not "6080-1"
-    const bricksetNum = setNum.replace(/-\d+$/, '');
-
-    try {
-        const url = `https://brickset.com/api/v3.asmx/getInstructions?apiKey=${encodeURIComponent(BRICKSET_API_KEY)}&setNumber=${encodeURIComponent(bricksetNum)}`;
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`Brickset API error: ${res.status}`);
-        const data = await res.json();
-
-        const instructions = data.instructions || [];
-
-        if (!instructions.length) {
-            panel.innerHTML = `
-                <div class="instructions-panel">
-                    <div class="instructions-panel-title">📋 BUILDING INSTRUCTIONS</div>
-                    <div class="instructions-empty">
-                        No instructions found for set ${escapeHTML(setNum)}.<br>
-                        <a href="https://www.lego.com/en-us/service/buildinginstructions/search#?text=${encodeURIComponent(bricksetNum)}" target="_blank" rel="noopener" class="instructions-link">Search lego.com ↗</a>
-                    </div>
-                </div>`;
-        } else {
-            // Group by description — multi-book sets have multiple entries
-            const rows = instructions.map((inst, i) => {
-                // Parse a human label from the description field e.g. "BI 3103, 112+4/65+200G, 10270 V29 1/2"
-                // Extract book number hint if present (e.g. "1/2", "2/2")
-                const bookMatch = inst.description?.match(/(\d+\/\d+)\s*$/);
-                const bookLabel = bookMatch ? `Book ${bookMatch[1]}` : `File ${i + 1}`;
-                const desc = inst.description || bookLabel;
-                return `
-                    <a href="${inst.URL}" target="_blank" rel="noopener" class="instructions-item">
-                        <span class="instructions-item-icon">📄</span>
-                        <span class="instructions-item-label">${escapeHTML(desc)}</span>
-                        <span class="instructions-item-dl">⬇ PDF</span>
-                    </a>`;
-            }).join('');
-
-            panel.innerHTML = `
-                <div class="instructions-panel">
-                    <div class="instructions-panel-title">
-                        📋 BUILDING INSTRUCTIONS
-                        <span class="instructions-count">${instructions.length} file${instructions.length !== 1 ? 's' : ''}</span>
-                    </div>
-                    <div class="instructions-list">${rows}</div>
-                    <a href="https://www.lego.com/en-us/service/buildinginstructions/search#?text=${encodeURIComponent(bricksetNum)}"
-                       target="_blank" rel="noopener" class="instructions-lego-link">
-                       View on LEGO.com ↗
-                    </a>
-                </div>`;
-        }
-
-        panel.dataset.loaded = setNum;
-        if (btn) btn.classList.add('instructions-btn--active');
-
-    } catch (err) {
-        panel.innerHTML = `
-            <div class="instructions-panel">
-                <div class="instructions-panel-title">📋 BUILDING INSTRUCTIONS</div>
-                <div class="instructions-empty" style="color:#ff6666;">
-                    Error: ${escapeHTML(err.message)}<br>
-                    <a href="https://www.lego.com/en-us/service/buildinginstructions/search#?text=${encodeURIComponent(bricksetNum)}" target="_blank" rel="noopener" class="instructions-link">Try lego.com ↗</a>
-                </div>
-            </div>`;
-        panel.dataset.loaded = setNum;
-    } finally {
-        if (btn) { btn.textContent = '📋 BUILDING INSTRUCTIONS'; btn.disabled = false; }
-    }
 }
 
 // --- Image Lightbox Gallery ---
@@ -863,24 +761,24 @@ async function saveCurrentSet() {
 
 async function loadLastAdded() {
     const container = document.getElementById('last-added-container');
-    if (!container) return;
     const { data, error } = await db.from('lego_collection')
-        .select('*').order('created_at', { ascending: false }).limit(3);
+        .select('*').order('created_at', { ascending: false }).limit(1);
 
     if (error || !data || data.length === 0) {
-        container.innerHTML = `<div style='color:#333;font-size:0.7em;letter-spacing:1px;'>No sets yet.</div>`;
+        container.innerHTML = "<p style='color:#666;'>No data available.</p>";
         return;
     }
 
-    // Render each of the last 3 sets as a stacked mini-card
-    container.innerHTML = data.map((item, i) => `
-        <div class="last-added-panel-card" style="${i > 0 ? 'margin-top:6px;' : ''}">
-            <img src="${item.img_url}" alt="${item.name}"
-                 onerror="this.style.display='none'">
-            <div class="last-added-panel-name">${item.name}</div>
-            <div class="last-added-panel-meta">${item.theme || '—'} · ${item.year || '—'}</div>
+    const item = data[0];
+    container.innerHTML = `
+        <div class="last-added-card">
+            <img src="${item.img_url}" alt="${item.name}" width="60" style="border: 1px solid #2a2a2a; flex-shrink:0;">
+            <div class="last-added-card-text">
+                <div style="color:#fff; font-size:0.9em;">${item.name}</div>
+                <div style="font-size:0.78em; color:var(--cyan); margin-top:3px;">${item.theme} &nbsp;·&nbsp; ${item.year}</div>
+            </div>
         </div>
-    `).join('');
+    `;
 }
 
 
@@ -1957,6 +1855,122 @@ function exportWantlist() {
     a.download = 'lego_wantlist.csv';
     a.click();
     URL.revokeObjectURL(url);
+}
+
+// --- SET OF THE DAY ---
+// Uses today's date as a deterministic seed to pick a consistent set all day.
+// Changes at midnight. No extra infrastructure needed — just the Rebrickable API.
+
+async function loadSetOfTheDay() {
+    const container = document.getElementById('sotd-container');
+    const dateLabel = document.getElementById('sotd-date');
+    if (!container) return;
+
+    // Show today's date
+    const now = new Date();
+    if (dateLabel) {
+        dateLabel.textContent = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase();
+    }
+
+    // Deterministic page offset from day-of-year so it changes daily but is stable all day
+    const startOfYear = new Date(now.getFullYear(), 0, 0);
+    const dayOfYear = Math.floor((now - startOfYear) / 86400000);
+
+    // Cycle through pages — min_parts=20 ensures sets with actual content
+    const totalPages = 800;
+    const page = (dayOfYear % totalPages) + 1;
+
+    try {
+        const res = await fetch(
+            `https://rebrickable.com/api/v3/lego/sets/?page=${page}&page_size=1&min_parts=20&ordering=set_num`,
+            { headers: { 'Authorization': `key ${REBRICKABLE_API_KEY}` } }
+        );
+        if (!res.ok) throw new Error('API error');
+        const data = await res.json();
+        const set = data.results?.[0];
+        if (!set) throw new Error('No set returned');
+
+        const themeName = await fetchTheme(set.theme_id);
+        renderSetOfTheDay({ ...set, theme_name: themeName });
+    } catch (err) {
+        if (container) container.innerHTML = `<span style="color:#333;font-size:0.8em;">Could not load set of the day.</span>`;
+    }
+}
+
+function renderSetOfTheDay(set) {
+    const container = document.getElementById('sotd-container');
+    if (!container) return;
+
+    const inCollection = collectionSetNums.has(set.set_num);
+    const inWantlist   = wantlistSetNums.has(set.set_num);
+
+    container.innerHTML = `
+        <div class="sotd-card" onclick="selectSotdSet('${set.set_num}', ${set.theme_id})">
+            <div class="sotd-img-wrap">
+                <img id="sotd-img" src="${set.set_img_url || ''}" alt="${escapeHTML(set.name)}">
+                <span class="sotd-dice">⚄ DAILY</span>
+            </div>
+            <div class="sotd-info">
+                <div class="sotd-name">${escapeHTML(set.name)}</div>
+                <div class="sotd-meta">${set.set_num} &nbsp;·&nbsp; ${set.year} &nbsp;·&nbsp; ${escapeHTML(set.theme_name)}</div>
+                <div class="sotd-parts">${set.num_parts} PARTS</div>
+                ${inCollection ? `<span class="presence-badge presence-badge--collection" style="margin-top:4px;display:inline-block;">✓ IN COLLECTION</span>` : ''}
+                ${inWantlist   ? `<span class="presence-badge presence-badge--wantlist" style="margin-top:4px;display:inline-block;">♥ IN WANT LIST</span>` : ''}
+            </div>
+            <div class="sotd-actions" onclick="event.stopPropagation()">
+                <button class="sotd-btn primary" onclick="selectSotdSet('${set.set_num}', ${set.theme_id})">VIEW SET</button>
+                <button class="sotd-btn" onclick="sotdSaveToCollection('${set.set_num}', ${set.theme_id})">+ COLLECT</button>
+                <button class="sotd-btn" onclick="sotdSaveToWantlist('${set.set_num}', ${set.theme_id})">♥ WANT</button>
+            </div>
+        </div>
+    `;
+    const img = document.getElementById('sotd-img');
+    if (img) attachImgFallback(img);
+}
+
+async function selectSotdSet(setNum, themeId) {
+    const container = document.getElementById('result-container');
+    container.style.display = 'block';
+    container.innerHTML = '<p>Loading set details...</p>';
+    container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    try {
+        const setRes = await fetch(`https://rebrickable.com/api/v3/lego/sets/${setNum}/`, {
+            headers: { 'Authorization': `key ${REBRICKABLE_API_KEY}` }
+        });
+        if (!setRes.ok) throw new Error('Set not found.');
+        const setData = await setRes.json();
+        const themeName = await fetchTheme(themeId);
+        currentSet = { ...setData, theme_name: themeName };
+        renderSearchResult(currentSet);
+    } catch (err) {
+        container.innerHTML = `<p style="color:red;">${err.message}</p>`;
+    }
+}
+
+async function sotdSaveToCollection(setNum, themeId) {
+    try {
+        const res = await fetch(`https://rebrickable.com/api/v3/lego/sets/${setNum}/`, {
+            headers: { 'Authorization': `key ${REBRICKABLE_API_KEY}` }
+        });
+        const setData = await res.json();
+        const themeName = await fetchTheme(themeId);
+        currentSet = { ...setData, theme_name: themeName };
+        await saveCurrentSet();
+        renderSetOfTheDay({ ...currentSet, theme_name: themeName });
+    } catch { showToast('Could not save set.', 'error'); }
+}
+
+async function sotdSaveToWantlist(setNum, themeId) {
+    try {
+        const res = await fetch(`https://rebrickable.com/api/v3/lego/sets/${setNum}/`, {
+            headers: { 'Authorization': `key ${REBRICKABLE_API_KEY}` }
+        });
+        const setData = await res.json();
+        const themeName = await fetchTheme(themeId);
+        currentSet = { ...setData, theme_name: themeName };
+        await saveToWantList();
+        renderSetOfTheDay({ ...currentSet, theme_name: themeName });
+    } catch { showToast('Could not save set.', 'error'); }
 }
 
 function exportCollection() {
