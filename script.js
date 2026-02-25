@@ -451,12 +451,12 @@ function renderSearchResult(set) {
         </div>
         <p>Parts: ${set.num_parts}</p>
         ${conditionSelectHTML()}
-        <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-top:10px;">
+        <div class="set-result-actions">
             <button class="save-btn" onclick="saveCurrentSet()">+ ADD TO COLLECTION</button>
             <button class="wantlist-btn" onclick="saveToWantList()">♥ ADD TO WANT LIST</button>
         </div>
-        <div id="instructions-panel"></div>
         <button class="instructions-btn" onclick="fetchBuildingInstructions('${escapeHTML(set.set_num)}')">📋 BUILDING INSTRUCTIONS</button>
+        <div id="instructions-panel"></div>
     `;
     const img = document.getElementById('search-result-img');
     if (img) attachImgFallback(img);
