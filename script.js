@@ -1,3 +1,10 @@
+// --- Active nav link ---
+document.querySelectorAll('.nav a').forEach(a => {
+    if (a.href === location.href || a.pathname === location.pathname) {
+        a.classList.add('active');
+    }
+});
+
 // --- CONFIGURATION ---
 const REBRICKABLE_API_KEY = '05a143eb0b36a4439e8118910912d050';
 const SUPABASE_URL = 'https://sgmibyooymrocvojchxu.supabase.co';

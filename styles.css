@@ -499,29 +499,53 @@ button:hover {
     100% { transform: translate(0, 0);    filter: saturate(1) hue-rotate(10deg) drop-shadow(0 0 14px rgba(0,255,0,0.65)); }
 }
 
-/* --- Nav --- */
+/* --- Nav Bar --- */
 .nav {
     margin-bottom: 22px;
     display: flex;
-    gap: 8px;
+    border: 1px solid #333;
+    background: #0a0f0a;
+    overflow: hidden;
 }
 .nav a {
-    color: #bbb;
+    color: #777;
     text-decoration: none;
-    border: 1px solid #444;
-    padding: 8px 16px;
-    width: 200px;
+    padding: 10px 0;
+    flex: 1;
     text-align: center;
     box-sizing: border-box;
-    font-size: 0.85em;
-    letter-spacing: 1px;
-    transition: border-color 0.15s, color 0.15s, background 0.15s, box-shadow 0.15s;
+    font-size: 0.8em;
+    letter-spacing: 2px;
+    border-right: 1px solid #333;
+    transition: background 0.15s, color 0.15s, text-shadow 0.15s;
+    position: relative;
+}
+.nav a:last-child {
+    border-right: none;
+}
+.nav a::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--green);
+    transform: scaleX(0);
+    transition: transform 0.15s ease;
 }
 .nav a:hover {
-    background: #0a1a0a;
-    border-color: var(--green);
+    background: #0d1a0d;
     color: var(--green);
-    box-shadow: 0 0 8px rgba(0,255,0,0.2);
+    text-shadow: 0 0 8px rgba(0,255,0,0.5);
+}
+.nav a:hover::after {
+    transform: scaleX(1);
+}
+.nav a.active {
+    color: var(--green);
+    background: #0d1a0d;
+}
+.nav a.active::after {
+    transform: scaleX(1);
 }
 
 /* --- Quick Links Sidebar --- */
