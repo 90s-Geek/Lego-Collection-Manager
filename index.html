@@ -7,7 +7,7 @@
     <link rel="icon" type="image/webp" href="images/90s_Geek_logo.webp">
     <title>90s Geek LEGO Search</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="styles.css?v=9">
+    <link rel="stylesheet" href="styles.css?v=10">
     <style>
         .search-box { background: #222; padding: 20px; border: 1px solid #00ff00; margin-bottom: 20px; }
         .search-box form { display: flex; flex-wrap: wrap; gap: 10px; }
@@ -211,18 +211,7 @@
 <body>
     <div class="sidebar-panel"></div>
     <div class="right-panel"></div>
-    <header class="site-header">
-        <a href="index.html" class="header-logo">
-            <img src="images/90s_Geek_logo.webp" alt="90s Geek Logo">
-            <span class="header-logo-text">90s Geek <span>LEGO Manager</span></span>
-        </a>
-        <nav class="site-nav">
-            <a href="index.html" class="active">SEARCH</a>
-            <a href="collection.html">COLLECTION</a>
-            <a href="wantlist.html">WANT LIST</a>
-            <a href="stats.html">STATS</a>
-        </nav>
-    </header>
+    <a href="index.html"><img src="images/90s_Geek_logo.webp" alt="90s Geek Logo" class="logo"></a>
 
     <div class="recently-added-panel">
         <span class="recently-added-title">RECENTLY ADDED</span>
@@ -231,6 +220,11 @@
         </div>
     </div>
 
+    <div class="nav">
+        <a href="collection.html">COLLECTION</a>
+        <a href="wantlist.html">WANT LIST</a>
+        <a href="stats.html">STATS</a>
+    </div>
     <div id="toast-container"></div>
 
     <h1>LEGO Search</h1>

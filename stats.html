@@ -7,7 +7,7 @@
     <link rel="icon" type="image/webp" href="images/90s_Geek_logo.webp">
     <title>Collection Stats</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="styles.css?v=8">
+    <link rel="stylesheet" href="styles.css?v=10">
     <style>
         /* ── Stats Page Specific ───────────────────────────────── */
 
@@ -332,18 +332,13 @@
 </head>
 <body>
     <div class="sidebar-panel"></div>
-    <header class="site-header">
-        <a href="index.html" class="header-logo">
-            <img src="images/90s_Geek_logo.webp" alt="90s Geek Logo">
-            <span class="header-logo-text">90s Geek <span>LEGO Manager</span></span>
-        </a>
-        <nav class="site-nav">
-            <a href="index.html">SEARCH</a>
-            <a href="collection.html">COLLECTION</a>
-            <a href="wantlist.html">WANT LIST</a>
-            <a href="stats.html" class="active">STATS</a>
-        </nav>
-    </header>
+    <a href="index.html"><img src="images/90s_Geek_logo.webp" alt="90s Geek Logo" class="logo"></a>
+
+    <div class="nav">
+        <a href="index.html">SEARCH</a>
+        <a href="collection.html">COLLECTION</a>
+        <a href="wantlist.html">WANT LIST</a>
+    </div>
     <div id="toast-container"></div>
 
     <h1>⬡ Collection Stats</h1>
