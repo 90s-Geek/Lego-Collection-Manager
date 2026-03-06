@@ -56,10 +56,10 @@ function presenceBadge(setNum) {
 function showToast(message, type = 'success') {
     // type: 'success' | 'error' | 'warning' | 'info'
     const colors = {
-        success: { bg: '#001a00', border: '#00ff00', text: '#00ff00' },
-        error:   { bg: '#1a0000', border: '#ff4444', text: '#ff4444' },
-        warning: { bg: '#1a0e00', border: '#ffaa00', text: '#ffaa00' },
-        info:    { bg: '#00111a', border: '#00ffff', text: '#00ffff' },
+        success: { bg: 'rgba(0,255,136,0.08)',  border: 'rgba(0,255,136,0.35)',  text: '#00ff88', dot: '#00ff88' },
+        error:   { bg: 'rgba(255,68,102,0.08)', border: 'rgba(255,68,102,0.35)', text: '#ff4466', dot: '#ff4466' },
+        warning: { bg: 'rgba(255,183,48,0.08)', border: 'rgba(255,183,48,0.35)', text: '#ffb730', dot: '#ffb730' },
+        info:    { bg: 'rgba(0,229,255,0.08)',  border: 'rgba(0,229,255,0.35)',  text: '#00e5ff', dot: '#00e5ff' },
     };
     const c = colors[type] || colors.info;
 
@@ -67,14 +67,25 @@ function showToast(message, type = 'success') {
 
     const toast = document.createElement('div');
     toast.style.cssText = `
-        background:${c.bg};border:1px solid ${c.border};color:${c.text};
-        padding:10px 16px;font-family:'Courier New',monospace;font-size:0.82em;
-        box-shadow:0 0 12px ${c.border}44;
-        opacity:0;transform:translateX(20px);
-        transition:opacity 0.25s,transform 0.25s;
-        pointer-events:none;line-height:1.4;max-width:280px;word-break:break-word;
+        display:flex;align-items:center;gap:10px;
+        background:#101610;border:1px solid ${c.border};color:${c.text};
+        padding:11px 16px;font-family:'JetBrains Mono','Courier New',monospace;font-size:0.78em;
+        box-shadow:0 4px 24px rgba(0,0,0,0.4),0 0 0 1px rgba(255,255,255,0.03);
+        border-radius:8px;
+        opacity:0;transform:translateX(14px);
+        transition:opacity 0.22s,transform 0.22s;
+        pointer-events:none;line-height:1.4;max-width:300px;word-break:break-word;
     `;
-    toast.textContent = message;
+    const dot = document.createElement('span');
+    dot.style.cssText = `
+        width:6px;height:6px;border-radius:50%;
+        background:${c.dot};flex-shrink:0;
+        box-shadow:0 0 6px ${c.dot};
+    `;
+    const text = document.createElement('span');
+    text.textContent = message;
+    toast.appendChild(dot);
+    toast.appendChild(text);
     container.appendChild(toast);
 
     // Animate in
@@ -88,9 +99,9 @@ function showToast(message, type = 'success') {
     // Animate out after delay
     setTimeout(() => {
         toast.style.opacity = '0';
-        toast.style.transform = 'translateX(20px)';
-        setTimeout(() => toast.remove(), 300);
-    }, 3200);
+        toast.style.transform = 'translateX(14px)';
+        setTimeout(() => toast.remove(), 280);
+    }, 3400);
 }
 
 function createToastContainer() {
