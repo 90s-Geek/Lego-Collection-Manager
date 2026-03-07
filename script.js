@@ -403,16 +403,22 @@ let _searchTotalCount = 0;
 function renderNameSearchResults(results, themeMap, query, totalCount) {
     if (totalCount !== null) _searchTotalCount = totalCount;
     const container = document.getElementById('result-container');
-    const rows = results.map(set => `
+    const rows = results.map(set => {
+        const baseNum = set.set_num.replace(/-\d+$/, '');
+        return `
         <li class="search-result-item" onclick="selectSearchResult('${set.set_num}', ${set.theme_id})">
             <img src="${set.set_img_url || ''}" alt="${set.name}" width="50" style="border:1px solid #333; flex-shrink:0; background:#fff;">
             <div class="search-result-info">
                 <strong>${escapeHTML(set.name)}</strong>
                 <span class="search-result-meta">${set.set_num} &nbsp;|&nbsp; ${set.year} &nbsp;|&nbsp; ${themeMap[set.theme_id] || 'Unknown'}</span>
                 ${presenceBadge(set.set_num)}
+                <a href="https://www.lego.com/en-us/service/building-instructions/find-building-instructions?query=${encodeURIComponent(baseNum)}" target="_blank" rel="noopener"
+                   onclick="event.stopPropagation()"
+                   style="color:#ffaa00;text-decoration:none;font-size:0.72em;letter-spacing:1px;display:inline-block;margin-top:3px;"
+                   title="Find building instructions on LEGO.com">📋 instructions ↗</a>
             </div>
         </li>
-    `).join('');
+    `}).join('');
 
     const loadMoreBtn = searchNextUrl
         ? `<button id="load-more-btn" onclick="loadMoreSearchResults()" class="load-more-btn">⬇ LOAD MORE RESULTS</button>`
@@ -469,6 +475,11 @@ function renderSearchResult(set) {
             <div class="search-img-hint">🔍 click to enlarge</div>
         </div>
         <p>Parts: ${set.num_parts}</p>
+        <div style="margin:8px 0 12px;">
+            <a href="https://www.lego.com/en-us/service/building-instructions/find-building-instructions?query=${encodeURIComponent(set.set_num.replace(/-\d+$/, ''))}" target="_blank" rel="noopener"
+               style="color:#ffaa00;text-decoration:none;font-size:0.82em;letter-spacing:1px;border:1px solid #443300;padding:4px 10px;display:inline-block;"
+               title="Find building instructions on LEGO.com">📋 BUILDING INSTRUCTIONS ↗</a>
+        </div>
         ${conditionSelectHTML()}
         <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-top:10px;">
             <button class="save-btn" onclick="saveCurrentSet()">+ ADD TO COLLECTION</button>
