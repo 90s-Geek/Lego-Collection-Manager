@@ -341,27 +341,35 @@ async function searchBySetNum(input, container) {
 
 async function searchByName(query, container) {
     try {
-        // First, check if the query exactly matches a theme name
-        const themeRes = await fetch(`https://rebrickable.com/api/v3/lego/themes/?search=${encodeURIComponent(query)}&page_size=10`, {
-            headers: { 'Authorization': `key ${REBRICKABLE_API_KEY}` }
-        });
+        // Run theme lookup and set name search in parallel
+        const [themeRes, setRes] = await Promise.all([
+            fetch(`https://rebrickable.com/api/v3/lego/themes/?search=${encodeURIComponent(query)}&page_size=20`, {
+                headers: { 'Authorization': `key ${REBRICKABLE_API_KEY}` }
+            }),
+            fetch(`https://rebrickable.com/api/v3/lego/sets/?search=${encodeURIComponent(query)}&page_size=20&ordering=-year`, {
+                headers: { 'Authorization': `key ${REBRICKABLE_API_KEY}` }
+            })
+        ]);
+
+        const q = query.toLowerCase();
+        let themeMatch = null;
         if (themeRes.ok) {
             const themeData = await themeRes.json();
-            const exactMatch = (themeData.results || []).find(t =>
-                t.name.toLowerCase() === query.toLowerCase()
-            );
-            if (exactMatch) {
-                await searchByThemeId(exactMatch.id, exactMatch.name, container);
-                return;
-            }
+            // Prefer exact match, fall back to starts-with match
+            const results = themeData.results || [];
+            themeMatch = results.find(t => t.name.toLowerCase() === q)
+                      || results.find(t => t.name.toLowerCase().startsWith(q))
+                      || results.find(t => t.name.toLowerCase().replace(/[^a-z0-9]/g, '') === q.replace(/[^a-z0-9]/g, ''));
         }
 
-        // Fall back to set name search
-        const res = await fetch(`https://rebrickable.com/api/v3/lego/sets/?search=${encodeURIComponent(query)}&page_size=20&ordering=-year`, {
-            headers: { 'Authorization': `key ${REBRICKABLE_API_KEY}` }
-        });
-        if (!res.ok) throw new Error("Search failed.");
-        const data = await res.json();
+        if (themeMatch) {
+            await searchByThemeId(themeMatch.id, themeMatch.name, container);
+            return;
+        }
+
+        // Fall back to set name results
+        if (!setRes.ok) throw new Error("Search failed.");
+        const data = await setRes.json();
 
         if (!data.results || data.results.length === 0) {
             container.innerHTML = `<p style="color:#ff6666;">No sets found for "<strong>${escapeHTML(query)}</strong>".</p>`;
