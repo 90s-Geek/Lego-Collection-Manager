@@ -728,6 +728,7 @@ button:active { transform: translateY(0); }
 .presence-badge {
     display: inline-flex;
     align-items: center;
+    align-self: flex-start;
     font-size: 0.62em;
     font-weight: 700;
     letter-spacing: 0.5px;
