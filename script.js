@@ -339,32 +339,13 @@ async function searchBySetNum(input, container) {
     }
 }
 
-// Known theme IDs from Rebrickable — covers the most searched themes
-// Used as a fast path before hitting the themes API
-const KNOWN_THEMES = {
-    'star wars': 158, 'technic': 1, 'city': 52, 'creator': 22,
-    'ninjago': 435, 'harry potter': 246, 'castle': 186, 'space': 349,
-    'pirates': 159, 'trains': 116, 'speed champions': 602, 'ideas': 408,
-    'architecture': 252, 'marvel': 231, 'dc comics': 635, 'classic': 494,
-    'duplo': 53, 'friends': 216, 'minecraft': 577, 'jurassic world': 564,
-    'batman': 267, 'icons': 598, 'creator expert': 585, 'art': 687,
-    'disney': 575, 'lord of the rings': 556, 'hobbit': 557,
-    'indiana jones': 53, 'avatar': 752, 'botanical': 690,
-};
-
 async function searchByName(query, container) {
     try {
         const q = query.toLowerCase().trim();
 
-        // 1. Check hardcoded theme map first (instant, no API call)
-        if (KNOWN_THEMES[q] !== undefined) {
-            await searchByThemeId(KNOWN_THEMES[q], query, container);
-            return;
-        }
-
-        // 2. Run theme API lookup and set name search in parallel
+        // Fetch theme search and set name search in parallel
         const [themeRes, setRes] = await Promise.all([
-            fetch(`https://rebrickable.com/api/v3/lego/themes/?page_size=1000`, {
+            fetch(`https://rebrickable.com/api/v3/lego/themes/?search=${encodeURIComponent(query)}&page_size=50`, {
                 headers: { 'Authorization': `key ${REBRICKABLE_API_KEY}` }
             }),
             fetch(`https://rebrickable.com/api/v3/lego/sets/?search=${encodeURIComponent(query)}&page_size=20&ordering=-year`, {
@@ -376,18 +357,19 @@ async function searchByName(query, container) {
         if (themeRes.ok) {
             const themeData = await themeRes.json();
             const all = themeData.results || [];
-            // Exact match first, then normalized (strip spaces/punctuation)
+            console.log(`[theme search] query="${query}" results:`, all.map(t => `${t.name} (${t.id})`));
             const normalize = s => s.toLowerCase().replace(/[^a-z0-9]/g, '');
             themeMatch = all.find(t => t.name.toLowerCase() === q)
                       || all.find(t => normalize(t.name) === normalize(q));
         }
 
         if (themeMatch) {
+            console.log(`[theme search] matched theme: ${themeMatch.name} (id=${themeMatch.id})`);
             await searchByThemeId(themeMatch.id, themeMatch.name, container);
             return;
         }
 
-        // 3. Fall back to set name results
+        // Fall back to set name results
         if (!setRes.ok) throw new Error("Search failed.");
         const data = await setRes.json();
 
