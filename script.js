@@ -7,8 +7,13 @@ document.querySelectorAll('.nav a').forEach(a => {
 
 // --- CONFIGURATION ---
 const REBRICKABLE_API_KEY = '05a143eb0b36a4439e8118910912d050';
+const BRICKSET_API_KEY    = '3-lNuI-wkoZ-HDgqP';
 const SUPABASE_URL = 'https://sgmibyooymrocvojchxu.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNnbWlieW9veW1yb2N2b2pjaHh1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1Mzk0OTYsImV4cCI6MjA4NzExNTQ5Nn0.nLXsVr6mvsCQJijHsO2wkw49e0J4JZ-2oiLTpKZGmu0';
+
+// --- Retail Price Cache (Brickset) ---
+// Keyed by set_num → retail price in USD (or null if unavailable)
+const retailPriceCache = {};
 
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let currentSet = null;
@@ -220,6 +225,34 @@ function restoreFilterState() {
 
 // Avoids redundant Rebrickable API calls for themes already fetched this session
 const themeCache = {};
+
+// --- Fetch Retail Price from Brickset ---
+// Returns the USD retail price for a set_num, or null if unavailable.
+// Caches results per session to avoid repeat API calls.
+async function fetchRetailPrice(setNum) {
+    if (setNum in retailPriceCache) return retailPriceCache[setNum];
+    try {
+        const num = setNum.replace(/-\d+$/, '');
+        const url = `https://brickset.com/api/v3.asmx/getSets?apiKey=${BRICKSET_API_KEY}&userHash=&params=${encodeURIComponent(JSON.stringify({setNumber: num, pageSize: 1}))}`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Brickset API error');
+        const data = await res.json();
+        const sets = data.sets || [];
+        if (!sets.length) { retailPriceCache[setNum] = null; return null; }
+        const price = sets[0]?.LEGOCom?.US?.retailPrice ?? null;
+        retailPriceCache[setNum] = price ? Number(price) : null;
+    } catch {
+        retailPriceCache[setNum] = null;
+    }
+    return retailPriceCache[setNum];
+}
+
+// Fetch retail prices for an array of set_nums in parallel
+async function prefetchRetailPrices(setNums) {
+    const unique = [...new Set(setNums)].filter(n => !(n in retailPriceCache));
+    if (!unique.length) return;
+    await Promise.allSettled(unique.map(n => fetchRetailPrice(n)));
+}
 
 async function fetchTheme(id) {
     if (themeCache[id]) return themeCache[id];
@@ -528,6 +561,15 @@ function renderSearchResult(set) {
         </div>
         <p>Parts: ${set.num_parts}</p>
         ${conditionSelectHTML()}
+        <div style="margin-top:10px;">
+            <label style="font-family:var(--mono);font-size:0.75em;color:var(--text-muted);letter-spacing:1px;display:block;margin-bottom:4px;">PRICE PAID (USD) — optional</label>
+            <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-family:var(--mono);color:var(--green);font-size:1em;">$</span>
+                <input id="price-paid-input" type="number" min="0" step="0.01" placeholder="0.00"
+                    style="background:var(--surface2);color:var(--text);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:6px 10px;font-family:var(--mono);font-size:0.9em;width:120px;outline:none;"
+                    onfocus="this.style.borderColor='var(--green-dim)'" onblur="this.style.borderColor='var(--border2)'">
+            </div>
+        </div>
         <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-top:10px;">
             <button class="save-btn" onclick="saveCurrentSet()">+ ADD TO COLLECTION</button>
             <button class="wantlist-btn" onclick="saveToWantList()">♥ ADD TO WANT LIST</button>
@@ -815,6 +857,8 @@ async function saveCurrentSet() {
     }
 
     const condition = document.getElementById('condition-select')?.value || '';
+    const pricePaidRaw = document.getElementById('price-paid-input')?.value || '';
+    const pricePaid = pricePaidRaw !== '' ? parseFloat(pricePaidRaw) : null;
 
     const { error } = await db.from('lego_collection').insert([{ 
         set_num: currentSet.set_num, 
@@ -822,7 +866,8 @@ async function saveCurrentSet() {
         img_url: currentSet.set_img_url,
         year: currentSet.year,
         theme: currentSet.theme_name,
-        condition: condition || null
+        condition: condition || null,
+        price_paid: (!isNaN(pricePaid) && pricePaid !== null) ? pricePaid : null
     }]);
 
     if (error) {
@@ -1094,8 +1139,11 @@ function renderCollection(data) {
         img.addEventListener('click', e => { e.stopPropagation(); openItemLightbox(item); });
 
         const textDiv = document.createElement('div');
+        const priceBadge = item.price_paid != null
+            ? `<span style="font-family:var(--mono);font-size:0.62em;color:var(--green);margin-left:6px;border:1px solid var(--green-dim);padding:1px 5px;border-radius:3px;vertical-align:middle;" title="Price paid">$${Number(item.price_paid).toFixed(2)}</span>`
+            : '';
         textDiv.innerHTML = `
-            <strong>${item.name}</strong> (${item.year})${conditionBadge(item.condition)}<br>
+            <strong>${item.name}</strong> (${item.year})${conditionBadge(item.condition)}${priceBadge}<br>
             <small style="color:#00ffff;">Theme: ${item.theme}</small>`;
 
         infoDiv.appendChild(checkbox);
@@ -1132,6 +1180,21 @@ function showModal(item) {
             <button onclick="updateCondition(${item.id})" style="margin-top:8px;width:100%;background:#00ff00;color:#000;border:none;padding:7px;font-family:'Courier New',monospace;font-weight:bold;cursor:pointer;">UPDATE CONDITION</button>
         </div>`;
 
+    const priceSection = onWantlist ? '' : `
+        <div style="margin-top:12px;border-top:1px solid var(--border2);padding-top:12px;">
+            <div style="font-family:var(--mono);font-size:0.68em;color:var(--text-muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;">Price Paid</div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                <span style="font-family:var(--mono);color:var(--green);font-size:1em;">$</span>
+                <input id="modal-price-input" type="number" min="0" step="0.01"
+                    value="${item.price_paid != null ? item.price_paid : ''}"
+                    placeholder="0.00"
+                    style="background:var(--surface2);color:var(--text);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:6px 10px;font-family:var(--mono);font-size:0.9em;width:120px;outline:none;"
+                    onfocus="this.style.borderColor='var(--green-dim)'" onblur="this.style.borderColor='var(--border2)'">
+                <span id="modal-retail-price" style="font-family:var(--mono);font-size:0.7em;color:var(--text-muted);"></span>
+            </div>
+            <button onclick="updatePricePaid(${item.id})" style="width:100%;background:transparent;color:var(--green);border:1px solid var(--green-dim);padding:7px;font-family:var(--mono);font-size:0.75em;font-weight:bold;cursor:pointer;border-radius:var(--radius-sm);letter-spacing:1px;transition:background 0.2s;" onmouseover="this.style.background='rgba(0,255,136,0.08)'" onmouseout="this.style.background='transparent'">UPDATE PRICE</button>
+        </div>`;
+
     const setNumDisplay = item.set_num
         ? `<a href="https://rebrickable.com/sets/${item.set_num}/" target="_blank" rel="noopener" style="color:#00ffff;text-decoration:none;" title="View on Rebrickable">${item.set_num} ↗</a>`
         : 'N/A';
@@ -1149,11 +1212,23 @@ function showModal(item) {
             <div><span class="label">Theme: </span><span class="value">${item.theme}</span></div>
             ${!onWantlist && item.condition ? `<div><span class="label">Condition: </span>${conditionBadge(item.condition)}</div>` : ''}
             ${conditionSection}
+            ${priceSection}
         </div>
     `;
     const img = document.getElementById('modal-set-img');
     if (img) attachImgFallback(img);
     document.getElementById('set-modal').classList.add('active');
+
+    // Fetch retail price in background and show next to input
+    if (!onWantlist && item.set_num) {
+        fetchRetailPrice(item.set_num).then(price => {
+            const el = document.getElementById('modal-retail-price');
+            if (el) {
+                el.textContent = price != null ? `Retail: $${price.toFixed(2)}` : 'Retail: N/A';
+                el.title = 'Original retail price (USD) from Brickset';
+            }
+        });
+    }
 }
 
 async function updateCondition(id) {
@@ -1169,6 +1244,21 @@ async function updateCondition(id) {
     const item = collectionCache.find(i => i.id === id);
     if (item) item.condition = condition;
     showToast("Condition updated!", 'success');
+    applyControls();
+    document.getElementById('set-modal').classList.remove('active');
+}
+
+async function updatePricePaid(id) {
+    const raw = document.getElementById('modal-price-input')?.value;
+    const price_paid = (raw !== '' && raw != null) ? parseFloat(raw) : null;
+    const { error } = await db.from('lego_collection').update({ price_paid: (!isNaN(price_paid) && price_paid !== null) ? price_paid : null }).eq('id', id);
+    if (error) {
+        showToast("Error updating price: " + error.message, 'error');
+        return;
+    }
+    const item = collectionCache.find(i => i.id === id);
+    if (item) item.price_paid = price_paid;
+    showToast("Price updated!", 'success');
     applyControls();
     document.getElementById('set-modal').classList.remove('active');
 }
@@ -2093,8 +2183,8 @@ function exportCollection() {
     // Use in-memory cache — no need for a redundant round-trip to Supabase
     if (!collectionCache.length) return showToast("No data to export.", 'warning');
     const sorted = [...collectionCache].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-    const headers = ['set_num', 'name', 'theme', 'year', 'condition', 'img_url'];
-    const rows = sorted.map(item => headers.map(h => `"${(item[h] || '').toString().replace(/"/g, '""')}"`).join(','));
+    const headers = ['set_num', 'name', 'theme', 'year', 'condition', 'price_paid', 'img_url'];
+    const rows = sorted.map(item => headers.map(h => `"${(item[h] != null ? item[h] : '').toString().replace(/"/g, '""')}"`).join(','));
     const csv = [headers.join(','), ...rows].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
