@@ -305,6 +305,8 @@
         }
         .stats-loading::after { content: '...'; animation: blink 1s step-end infinite; }
 
+        h1, h1::before { color: var(--magenta); background: var(--magenta); box-shadow: 0 0 10px var(--magenta); }
+
         .hl-green   { color: var(--green); }
         .hl-cyan    { color: var(--cyan); }
         .hl-magenta { color: var(--magenta); }
@@ -323,7 +325,7 @@
     </div>
     <div id="toast-container"></div>
 
-    <h1>Collection Stats</h1>
+    <h1>⬡ Collection Stats</h1>
 
     <!-- KPI Row -->
     <div class="kpi-grid" id="kpi-grid">
