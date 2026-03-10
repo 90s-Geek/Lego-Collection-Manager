@@ -349,6 +349,8 @@ async function searchLego() {
         }
     } finally {
         if (searchBtn) { searchBtn.disabled = false; searchBtn.textContent = 'SEARCH'; }
+        const inputEl = document.getElementById('set-input');
+        if (inputEl) { inputEl.focus(); inputEl.select(); }
     }
 }
 
